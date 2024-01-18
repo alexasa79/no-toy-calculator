@@ -386,8 +386,10 @@ function evaluate() {
 			continue;
 		}
 
-		if (!trailingEqual) {
+		if (!trailingEqual && multipleCursors) {
 			result = "=" + result;
+		} else if (!multipleCursors) {
+			result = "\n" + result;
 		}
 
 		results.push(result);
