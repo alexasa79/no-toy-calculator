@@ -304,7 +304,6 @@ class Parser {
 export function evaluateExpression(expr: string): string {
 	const lexer = new Lexer(expr);
 	const tokens = lexer.tokenize();
-	debug(tokens);
 	const parser = new Parser(tokens);
 	let result = parser.parse();
 	debug(`${expr} -> ${result}`);
@@ -349,43 +348,56 @@ function evaluate() {
 		return;
 	}
 
-	const doc = editor.document;
-	const pos = editor.selection.active;
-	let currentLine = doc.lineAt(pos).text.substring(0, pos.character);
+	const multipleCursors = editor.selections.length > 1;
 
-	debug(`Current position: ${pos.line}, ${pos.character}`);
-	debug(`Evaluating line: ${currentLine}`);
+	debug(`# selections ${editor.selections.length}`);
 
-	if (currentLine.length === 0 || currentLine.length > 120) {
-		err(`Expression's length ${currentLine.length} does not make sense`);
-		return;
-	}
+	let results = new Array<string>;
 
-	currentLine = trimLine(currentLine);
-	debug(`After trimming: ${currentLine}`);
+	for (let i = 0; i < editor.selections.length; i++) {
+		const doc = editor.document;
+		const selection = editor.selections[i];
+		const pos = selection.active;
+		let currentLine = doc.lineAt(pos).text.substring(0, pos.character);
 
-	// Remove trailing `=` from the end of the input string...
-	let trailingEqual = false;
-	if (currentLine[currentLine.length - 1] === '=') {
-		currentLine = currentLine.substring(0, currentLine.length - 1);
-		trailingEqual = true;
-	}
+		debug(`Current position: ${pos.line}, ${pos.character}`);
+		debug(`Evaluating line: ${currentLine}`);
 
-	let result = evaluateExpressionSafe(currentLine);
-	if (result === "") {
-		return;
+		if (currentLine.length === 0 || currentLine.length > 120) {
+			err(`Expression's length ${currentLine.length} does not make sense`);
+			return;
+		}
+
+		currentLine = trimLine(currentLine);
+		debug(`After trimming: ${currentLine}`);
+
+		// Remove trailing `=` from the end of the input string...
+		let trailingEqual = false;
+		if (currentLine[currentLine.length - 1] === '=') {
+			currentLine = currentLine.substring(0, currentLine.length - 1);
+			trailingEqual = true;
+		}
+
+		let result = evaluateExpressionSafe(currentLine);
+
+		if (result === "") {
+			debug("evaluateExpressionSafe returned empty result");
+			results.push("");
+			continue;
+		}
+
+		if (!trailingEqual) {
+			result = "=" + result;
+		}
+
+		results.push(result);
 	}
 
 	editor.edit(edit => {
-		if (editor.selection.isEmpty) {
-			if (!trailingEqual) {
-				result = "=" + result + "\n";
-			}
-			edit.insert(pos, result);
-		} else {
-			edit.replace(editor.selection, result);
-			var newPos = editor.selection.end;
-			editor.selection = new vscode.Selection(newPos, newPos);
+		for (let i = 0; i < editor.selections.length; i++) {
+			const selection = editor.selections[i];
+			const pos = selection.active;
+			edit.replace(pos, results[i]);
 		}
 	});
 }
