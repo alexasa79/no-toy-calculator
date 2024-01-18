@@ -1,6 +1,6 @@
 {
-  "name": "calculator",
-  "displayName": "calculator",
+  "name": "developer-calculator",
+  "displayName": "Developer Calculator",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -14,7 +14,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "calculator.do",
+        "command": "developer-calculator.eval",
         "title": "Calculate"
       }
     ]

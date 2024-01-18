@@ -22,7 +22,9 @@ enum TokenType {
 	Divide = 'DIVIDE',
 	LParen = 'LPAREN',
 	RParen = 'RPAREN',
-	EOF = 'EOF',
+	Variable = 'VARIABLE',
+	Identifier = 'IDENTIFIER',
+	EOF = 'EOF'
 }
 
 class Lexer {
@@ -91,52 +93,73 @@ class Lexer {
 		return result;
 	}
 
+	private consumeWord(): string {
+		const startPos = this.position;
+		this.advance();
+		while (this.currentChar !== null && /[a-zA-Z0-9_]/.test(this.currentChar)) {
+			this.advance();
+		}
+		return this.text.substring(startPos, this.position);
+	}
+
 	private getNextToken(): Token {
 		while (this.currentChar !== null) {
 			if (/\s/.test(this.currentChar)) {
 				this.skipWhitespace();
 				continue;
 			}
+
+			const positionBefore = this.position;
+
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'x') {
 				this.advance(); // Skip '0'
 				this.advance(); // Skip 'x'
-				return new Token(TokenType.HexNumber, this.hexNumber(), this.position);
+				return new Token(TokenType.HexNumber, this.hexNumber(), positionBefore);
 			}
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'b') {
 				this.advance(); // Skip '0'
 				this.advance(); // Skip 'b'
-				return new Token(TokenType.BinNumber, this.binNumber(), this.position);
+				return new Token(TokenType.BinNumber, this.binNumber(), positionBefore);
 			}
 			if (this.currentChar === '0') {
 				this.advance(); // Skip '0'
-				return new Token(TokenType.OctNumber, this.octNumber(), this.position);
+				return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
 			}
 			if (this.isDigit(this.currentChar)) {
-				return new Token(TokenType.Number, this.number(), this.position);
+				return new Token(TokenType.Number, this.number(), positionBefore);
 			}
 			if (this.currentChar === '+') {
 				this.advance();
-				return new Token(TokenType.Plus, '+', this.position);
+				return new Token(TokenType.Plus, '+', positionBefore);
 			}
 			if (this.currentChar === '-') {
 				this.advance();
-				return new Token(TokenType.Minus, '-', this.position);
+				return new Token(TokenType.Minus, '-', positionBefore);
 			}
 			if (this.currentChar === '*') {
 				this.advance();
-				return new Token(TokenType.Multiply, '*', this.position);
+				return new Token(TokenType.Multiply, '*', positionBefore);
 			}
 			if (this.currentChar === '/') {
 				this.advance();
-				return new Token(TokenType.Divide, '/', this.position);
+				return new Token(TokenType.Divide, '/', positionBefore);
 			}
 			if (this.currentChar === '(') {
 				this.advance();
-				return new Token(TokenType.LParen, '(', this.position);
+				return new Token(TokenType.LParen, '(', positionBefore);
 			}
 			if (this.currentChar === ')') {
 				this.advance();
-				return new Token(TokenType.RParen, ')', this.position);
+				return new Token(TokenType.RParen, ')', positionBefore);
+			}
+			if (this.currentChar === '$' && this.text[this.position + 1] === '$') {
+				this.advance();
+				this.advance();
+				return new Token(TokenType.Variable, '$$', positionBefore);
+			}
+			if (/[a-zA-Z]/.test(this.currentChar)) {
+				const word = this.consumeWord();
+				return new Token(TokenType.Identifier, word, positionBefore);
 			}
 			throw new Error(`Invalid character: ${this.currentChar}`);
 		}
@@ -151,6 +174,22 @@ class Lexer {
 			token = this.getNextToken();
 		}
 		return tokens;
+	}
+}
+
+type OutputBase = 'dec' | 'hex' | 'bin' | 'oct';
+
+class Result {
+	val: number | string;
+	base: OutputBase;
+
+	constructor(result: number | string) {
+		this.val = result;
+		this.base = 'dec';
+	}
+
+	toString(): string {
+		return `[base=${this.base}, val=${this.val}]`;
 	}
 }
 
@@ -171,20 +210,25 @@ class Parser {
 			new Token(TokenType.EOF, '', this.position);
 	}
 
-	private factor(): number {
+	private factor(): Result {
 		const token = this.currentToken;
 		if (token.type === TokenType.Number) {
 			this.advance();
-			return parseInt(token.value, 10);
+			return new Result(parseInt(token.value, 10));
 		} else if (token.type === TokenType.HexNumber) {
 			this.advance();
-			return parseInt(token.value, 16);
+			return new Result(parseInt(token.value, 16));
 		} else if (token.type === TokenType.OctNumber) {
 			this.advance();
-			return parseInt(token.value, 8);
+			return new Result(parseInt(token.value, 8));
 		} else if (token.type === TokenType.BinNumber) {
 			this.advance();
-			return parseInt(token.value, 2);
+			return new Result(parseInt(token.value, 2));
+		} else if (token.type === TokenType.Identifier) {
+			this.advance();
+			let res = this.expr();
+			res.base = token.value as OutputBase;
+			return res;
 		} else if (token.type === TokenType.LParen) {
 			this.advance();
 			const result = this.expr();
@@ -198,7 +242,7 @@ class Parser {
 		}
 	}
 
-	private term(): number {
+	private term(): Result {
 		let result = this.factor();
 		while (
 			this.currentToken.type === TokenType.Multiply ||
@@ -206,30 +250,56 @@ class Parser {
 		) {
 			const token = this.currentToken;
 			this.advance();
+
+			if (typeof result.val !== 'number') {
+				throw new Error(`Unexpected token ${this.tokens[this.position]}.
+					Trying to multiply a ${typeof result.val}`);
+			}
+
+			let right = this.factor();
+
+			if (typeof right.val !== 'number') {
+				throw new Error(`Unexpected token ${this.tokens[this.position]}.
+					Trying to multiply a ${typeof right.val}`);
+			}
+
 			if (token.type === TokenType.Multiply) {
-				result *= this.factor();
+				result.val *= right.val;
 			} else if (token.type === TokenType.Divide) {
-				result /= this.factor();
+				result.val /= right.val;
 			}
 		}
 		return result;
 	}
 
-	public expr(): number {
+	public expr(): Result {
 		let result = this.term();
 		while (this.currentToken.type === TokenType.Plus || this.currentToken.type === TokenType.Minus) {
 			const token = this.currentToken;
 			this.advance();
+
+			if (typeof result.val !== 'number') {
+				throw new Error(`Unexpected token ${this.tokens[this.position]}.
+					Trying to add a ${typeof result.val}`);
+			}
+
+			let right = this.term();
+
+			if (typeof right.val !== 'number') {
+				throw new Error(`Unexpected token ${this.tokens[this.position]}.
+					Trying to add a ${typeof right.val}`);
+			}
+
 			if (token.type === TokenType.Plus) {
-				result += this.term();
+				result.val += right.val;
 			} else if (token.type === TokenType.Minus) {
-				result -= this.term();
+				result.val -= right.val;
 			}
 		}
 		return result;
 	}
 
-	public parse(): number {
+	public parse(): Result {
 		let result = this.expr();
 		if (this.position < this.tokens.length) {
 			throw new Error(`Unexpected token ${this.tokens[this.position]}`);
@@ -239,21 +309,35 @@ class Parser {
 }
 
 export function evaluateExpression(expr: string): string {
+	const lexer = new Lexer(expr);
+	const tokens = lexer.tokenize();
+	console.log(tokens);
+	const parser = new Parser(tokens);
+	let result = parser.parse();
+	console.log(`${expr} -> ${result}`);
+
+	if (result.base === 'dec') {
+		return `${result.val}`;
+	} else if (result.base === 'hex') {
+		return `0x${result.val.toString(16)}`;
+	} else if (result.base === 'oct') {
+		return `0o${result.val.toString(8)}`;
+	} else if (result.base === 'bin') {
+		return `0b${result.val.toString(2)}`;
+	}
+	return "";
+}
+
+export function evaluateExpressionSafe(expr: string): string {
 	try {
-		const lexer = new Lexer(expr);
-		const tokens = lexer.tokenize();
-		const parser = new Parser(tokens);
-		let result = parser.parse();
-		console.log(tokens);
-		console.log(result);
-		return `${result}`;
+		return evaluateExpression(expr);
 	} catch (e) {
 		vscode.window.showInformationMessage(`Error parsing expression: ${e}`);
 	}
 	return "";
 }
 
-function calculate() {
+function evaluate() {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) {
 		return;
@@ -276,10 +360,12 @@ function calculate() {
 		trailingEqual = true;
 	}
 
-	let result = evaluateExpression(currentLine);
+	let result = evaluateExpressionSafe(currentLine);
 	if (result === "") {
 		return;
 	}
+
+	lastResult = result;
 
 	editor.edit(edit => {
 		if (editor.selection.isEmpty) {
@@ -296,7 +382,7 @@ function calculate() {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	let disposable = vscode.commands.registerCommand('calculator.do', calculate);
+	let disposable = vscode.commands.registerCommand('developer-calculator.eval', evaluate);
 	context.subscriptions.push(disposable);
 }
 
