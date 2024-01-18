@@ -22,9 +22,14 @@ suite('Extension Test Suite', () => {
 		assert.throws(() => { evaluateExpression('+1'); });
 	});
 
-	test('Identifier tokens', () => {
+	test('Base tokens', () => {
 		assert.strictEqual(evaluateExpression('hex 10'), '0xa');
 		assert.strictEqual(evaluateExpression('bin 10'), '0b1010');
 		assert.strictEqual(evaluateExpression('oct 10'), '0o12');
+	});
+
+	test('Last result', () => {
+		assert.strictEqual(evaluateExpression('hex 10'), '0xa');
+		assert.strictEqual(evaluateExpression('dec $$'), '10');
 	});
 });
