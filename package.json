@@ -1,6 +1,6 @@
 {
-  "name": "developer-calculator",
-  "displayName": "Developer Calculator",
+  "name": "toy-calculator",
+  "displayName": "Toy Calculator",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "developer-calculator.eval",
-        "title": "Calculate"
+        "command": "toy-calculator.eval",
+        "title": "Toy Calculator: Evaluate"
       }
     ]
   },

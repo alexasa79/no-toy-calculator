@@ -1,2 +1,2 @@
-# Developer Calculator
+# Toy Calculator
 

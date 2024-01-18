@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
 
-let lastResult: string = "";
-
 class Token {
 	constructor(public type: TokenType,
 		public value: string,
 		public position: number) { }
+
 	public toString(): string {
 		return `${this.type} ${this.value} at offset ${this.position}`;
 	}
@@ -121,7 +120,7 @@ class Lexer {
 				this.advance(); // Skip 'b'
 				return new Token(TokenType.BinNumber, this.binNumber(), positionBefore);
 			}
-			if (this.currentChar === '0') {
+			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'o') {
 				this.advance(); // Skip '0'
 				return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
 			}
@@ -193,6 +192,8 @@ class Result {
 	}
 }
 
+let lastResult: Result = new Result(0);
+
 class Parser {
 	private tokens: Token[];
 	private currentToken: Token;
@@ -229,6 +230,9 @@ class Parser {
 			let res = this.expr();
 			res.base = token.value as OutputBase;
 			return res;
+		} else if (token.type === TokenType.Variable) {
+			this.advance();
+			return lastResult;
 		} else if (token.type === TokenType.LParen) {
 			this.advance();
 			const result = this.expr();
@@ -316,6 +320,8 @@ export function evaluateExpression(expr: string): string {
 	let result = parser.parse();
 	console.log(`${expr} -> ${result}`);
 
+	lastResult = result;
+
 	if (result.base === 'dec') {
 		return `${result.val}`;
 	} else if (result.base === 'hex') {
@@ -365,8 +371,6 @@ function evaluate() {
 		return;
 	}
 
-	lastResult = result;
-
 	editor.edit(edit => {
 		if (editor.selection.isEmpty) {
 			if (!trailingEqual) {
@@ -382,7 +386,7 @@ function evaluate() {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	let disposable = vscode.commands.registerCommand('developer-calculator.eval', evaluate);
+	let disposable = vscode.commands.registerCommand('toy-calculator.eval', evaluate);
 	context.subscriptions.push(disposable);
 }
 
