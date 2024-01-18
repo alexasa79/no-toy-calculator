@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as math from './math';
 
 class Token {
 	constructor(public type: TokenType,
@@ -176,23 +177,7 @@ class Lexer {
 	}
 }
 
-type OutputBase = 'dec' | 'hex' | 'bin' | 'oct';
-
-class Result {
-	val: number | string;
-	base: OutputBase;
-
-	constructor(result: number | string) {
-		this.val = result;
-		this.base = 'dec';
-	}
-
-	toString(): string {
-		return `[base=${this.base}, val=${this.val}]`;
-	}
-}
-
-let lastResult: Result = new Result(0);
+let lastResult: math.Result = new math.Result(0);
 
 class Parser {
 	private tokens: Token[];
@@ -211,24 +196,24 @@ class Parser {
 			new Token(TokenType.EOF, '', this.position);
 	}
 
-	private factor(): Result {
+	private factor(): math.Result {
 		const token = this.currentToken;
 		if (token.type === TokenType.Number) {
 			this.advance();
-			return new Result(parseInt(token.value, 10));
+			return new math.Result(parseInt(token.value, 10));
 		} else if (token.type === TokenType.HexNumber) {
 			this.advance();
-			return new Result(parseInt(token.value, 16));
+			return new math.Result(parseInt(token.value, 16));
 		} else if (token.type === TokenType.OctNumber) {
 			this.advance();
-			return new Result(parseInt(token.value, 8));
+			return new math.Result(parseInt(token.value, 8));
 		} else if (token.type === TokenType.BinNumber) {
 			this.advance();
-			return new Result(parseInt(token.value, 2));
+			return new math.Result(parseInt(token.value, 2));
 		} else if (token.type === TokenType.Identifier) {
 			this.advance();
 			let res = this.expr();
-			res.base = token.value as OutputBase;
+			res.base = token.value as math.OutputBase;
 			return res;
 		} else if (token.type === TokenType.Variable) {
 			this.advance();
@@ -246,7 +231,7 @@ class Parser {
 		}
 	}
 
-	private term(): Result {
+	private term(): math.Result {
 		let result = this.factor();
 		while (
 			this.currentToken.type === TokenType.Multiply ||
@@ -276,7 +261,7 @@ class Parser {
 		return result;
 	}
 
-	public expr(): Result {
+	public expr(): math.Result {
 		let result = this.term();
 		while (this.currentToken.type === TokenType.Plus || this.currentToken.type === TokenType.Minus) {
 			const token = this.currentToken;
@@ -303,7 +288,7 @@ class Parser {
 		return result;
 	}
 
-	public parse(): Result {
+	public parse(): math.Result {
 		let result = this.expr();
 		if (this.position < this.tokens.length) {
 			throw new Error(`Unexpected token ${this.tokens[this.position]}`);
