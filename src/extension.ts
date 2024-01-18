@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import * as math from './math';
 
+const err = vscode.window.showErrorMessage;
+const info = vscode.window.showInformationMessage;
+const debug = console.log;
+
 class Token {
 	constructor(public type: TokenType,
 		public value: string,
@@ -300,10 +304,10 @@ class Parser {
 export function evaluateExpression(expr: string): string {
 	const lexer = new Lexer(expr);
 	const tokens = lexer.tokenize();
-	console.log(tokens);
+	debug(tokens);
 	const parser = new Parser(tokens);
 	let result = parser.parse();
-	console.log(`${expr} -> ${result}`);
+	debug(`${expr} -> ${result}`);
 
 	lastResult = result;
 
@@ -323,9 +327,20 @@ export function evaluateExpressionSafe(expr: string): string {
 	try {
 		return evaluateExpression(expr);
 	} catch (e) {
-		vscode.window.showInformationMessage(`Error parsing expression: ${e}`);
+		err(`Error parsing expression: ${e}`);
 	}
 	return "";
+}
+
+function trimLine(s: string): string {
+	let start = 0;
+	let re = new RegExp('(?:#+|//+|/[*]+)', 'g');
+	let m = re.exec(s);
+	while (m != null) {
+		start = m.index + m[0].length;
+		m = re.exec(s);
+	}
+	return s.substring(start).trim();
 }
 
 function evaluate() {
@@ -336,13 +351,18 @@ function evaluate() {
 
 	const doc = editor.document;
 	const pos = editor.selection.active;
-	let currentLine = doc.lineAt(pos).text;
+	let currentLine = doc.lineAt(pos).text.substring(0, pos.character);
+
+	debug(`Current position: ${pos.line}, ${pos.character}`);
+	debug(`Evaluating line: ${currentLine}`);
 
 	if (currentLine.length === 0 || currentLine.length > 120) {
+		err(`Expression's length ${currentLine.length} does not make sense`);
 		return;
 	}
 
-	currentLine = currentLine.trim();
+	currentLine = trimLine(currentLine);
+	debug(`After trimming: ${currentLine}`);
 
 	// Remove trailing `=` from the end of the input string...
 	let trailingEqual = false;
