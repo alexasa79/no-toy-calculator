@@ -333,7 +333,7 @@ export function evaluateExpressionSafe(expr: string): string {
 
 function trimLine(s: string): string {
 	let start = 0;
-	let re = new RegExp('(?:#+|//+|/[*]+)', 'g');
+	let re = new RegExp('(?:#+|//+|/[*]+|=)', 'g');
 	let m = re.exec(s);
 	while (m != null) {
 		start = m.index + m[0].length;
