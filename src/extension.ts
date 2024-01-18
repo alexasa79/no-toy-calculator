@@ -374,7 +374,7 @@ function evaluate() {
 	editor.edit(edit => {
 		if (editor.selection.isEmpty) {
 			if (!trailingEqual) {
-				result = "=" + result;
+				result = "=" + result + "\n";
 			}
 			edit.insert(pos, result);
 		} else {
