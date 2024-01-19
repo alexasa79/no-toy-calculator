@@ -25,6 +25,7 @@ enum TokenType {
 	Multiply = 'MULTIPLY',
 	Divide = 'DIVIDE',
 	Modulo = 'MODULO',
+	Exponentiation = 'EXP',
 	LParen = 'LPAREN',
 	RParen = 'RPAREN',
 	Variable = 'VARIABLE',
@@ -117,17 +118,17 @@ class Lexer {
 			const positionBefore = this.position;
 
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'x') {
-				this.advance(); // Skip '0'
-				this.advance(); // Skip 'x'
+				this.advance();
+				this.advance();
 				return new Token(TokenType.HexNumber, this.hexNumber(), positionBefore);
 			}
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'b') {
-				this.advance(); // Skip '0'
-				this.advance(); // Skip 'b'
+				this.advance();
+				this.advance();
 				return new Token(TokenType.BinNumber, this.binNumber(), positionBefore);
 			}
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'o') {
-				this.advance(); // Skip '0'
+				this.advance();
 				return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
 			}
 			if (this.isDigit(this.currentChar)) {
@@ -140,6 +141,11 @@ class Lexer {
 			if (this.currentChar === '-') {
 				this.advance();
 				return new Token(TokenType.Minus, '-', positionBefore);
+			}
+			if (this.currentChar === '*' && this.text[this.position + 1]?.toLowerCase() === '*') {
+				this.advance();
+				this.advance();
+				return new Token(TokenType.Exponentiation, '**', positionBefore);
 			}
 			if (this.currentChar === '*') {
 				this.advance();
@@ -223,9 +229,9 @@ class Parser {
 			return new math.Result(parseInt(token.value, 2));
 		} else if (token.type === TokenType.Identifier) {
 			this.advance();
-			let res = this.expr();
-			res.base = token.value as math.OutputBase;
-			return res;
+			let right = this.expr();
+			right.base = token.value as math.OutputBase;
+			return right;
 		} else if (token.type === TokenType.Variable) {
 			this.advance();
 			return lastResult;
@@ -242,8 +248,19 @@ class Parser {
 		}
 	}
 
+	private exponent(): math.Result {
+		let left = this.factor();
+		while (this.currentToken.type === TokenType.Exponentiation) {
+			const token = this.currentToken;
+			this.advance();
+			let right = this.factor();
+			left = this.arithmetic.exp(left, right);
+		}
+		return left;
+	}
+
 	private term(): math.Result {
-		let result = this.factor();
+		let left = this.exponent();
 		while (
 			this.currentToken.type === TokenType.Multiply ||
 			this.currentToken.type === TokenType.Divide ||
@@ -251,17 +268,17 @@ class Parser {
 		) {
 			const token = this.currentToken;
 			this.advance();
-			let right = this.factor();
+			let right = this.exponent();
 
 			if (token.type === TokenType.Multiply) {
-				result = this.arithmetic.mul(result, right);
+				left = this.arithmetic.mul(left, right);
 			} else if (token.type === TokenType.Divide) {
-				result = this.arithmetic.div(result, right);
+				left = this.arithmetic.div(left, right);
 			} else if (token.type === TokenType.Modulo) {
-				result = this.arithmetic.mod(result, right);
+				left = this.arithmetic.mod(left, right);
 			}
 		}
-		return result;
+		return left;
 	}
 
 	public expr(): math.Result {

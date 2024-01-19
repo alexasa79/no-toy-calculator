@@ -20,6 +20,7 @@ export interface Arithmetic {
 	mul(a: Result, b: Result): Result;
 	div(a: Result, b: Result): Result;
 	mod(a: Result, b: Result): Result;
+	exp(a: Result, b: Result): Result;
 }
 
 export class JsArithmetic implements Arithmetic {
@@ -62,4 +63,9 @@ export class JsArithmetic implements Arithmetic {
 		}
 		return new Result((a.val as number) % (b.val as number));
 	};
+
+	exp(a: Result, b: Result): Result {
+		this.checkArguments(a, b, 'exponentiation');
+		return new Result((a.val as number) ** (b.val as number));
+	}
 }

@@ -35,4 +35,11 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(evaluateExpression('hex 10'), '0xa');
 		assert.strictEqual(evaluateExpression('dec $$'), '10');
 	});
+
+	test('Exponentiation', () => {
+		assert.strictEqual(evaluateExpression('2**2'), '4');
+		assert.strictEqual(evaluateExpression('2*2**3'), '16');
+		assert.strictEqual(evaluateExpression('3+2**4-5'), '14');
+		assert.strictEqual(evaluateExpression('(3+2)**2*2'), '50');
+	});
 });
