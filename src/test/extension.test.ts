@@ -14,6 +14,7 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(evaluateExpression('0x10+1'), '17');
 		assert.strictEqual(evaluateExpression('2+(0x2*2)'), '6');
 		assert.strictEqual(evaluateExpression('2+(0b1+01)*2'), '6');
+		assert.strictEqual(evaluateExpression('5%2'), '1');
 		assert.throws(() => { evaluateExpression('1+1)'); });
 		assert.throws(() => { evaluateExpression('(1+2'); });
 		assert.throws(() => { evaluateExpression('2+(0b1+01)*2)'); });
@@ -21,6 +22,7 @@ suite('Extension Test Suite', () => {
 		assert.throws(() => { evaluateExpression('1+'); });
 		assert.throws(() => { evaluateExpression('+1'); });
 		assert.throws(() => { evaluateExpression('1/0'); });
+		assert.throws(() => { evaluateExpression('1%0'); });
 	});
 
 	test('Base tokens', () => {

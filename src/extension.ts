@@ -24,6 +24,7 @@ enum TokenType {
 	Minus = 'MINUS',
 	Multiply = 'MULTIPLY',
 	Divide = 'DIVIDE',
+	Modulo = 'MODULO',
 	LParen = 'LPAREN',
 	RParen = 'RPAREN',
 	Variable = 'VARIABLE',
@@ -148,6 +149,10 @@ class Lexer {
 				this.advance();
 				return new Token(TokenType.Divide, '/', positionBefore);
 			}
+			if (this.currentChar === '%') {
+				this.advance();
+				return new Token(TokenType.Modulo, '%', positionBefore);
+			}
 			if (this.currentChar === '(') {
 				this.advance();
 				return new Token(TokenType.LParen, '(', positionBefore);
@@ -241,7 +246,8 @@ class Parser {
 		let result = this.factor();
 		while (
 			this.currentToken.type === TokenType.Multiply ||
-			this.currentToken.type === TokenType.Divide
+			this.currentToken.type === TokenType.Divide ||
+			this.currentToken.type === TokenType.Modulo
 		) {
 			const token = this.currentToken;
 			this.advance();
@@ -251,6 +257,8 @@ class Parser {
 				result = this.arithmetic.mul(result, right);
 			} else if (token.type === TokenType.Divide) {
 				result = this.arithmetic.div(result, right);
+			} else if (token.type === TokenType.Modulo) {
+				result = this.arithmetic.mod(result, right);
 			}
 		}
 		return result;

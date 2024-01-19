@@ -19,6 +19,7 @@ export interface Arithmetic {
 	sub(a: Result, b: Result): Result;
 	mul(a: Result, b: Result): Result;
 	div(a: Result, b: Result): Result;
+	mod(a: Result, b: Result): Result;
 }
 
 export class JsArithmetic implements Arithmetic {
@@ -52,5 +53,13 @@ export class JsArithmetic implements Arithmetic {
 			throw new Error('Divison by zero');
 		}
 		return new Result((a.val as number) / (b.val as number));
+	};
+
+	mod(a: Result, b: Result): Result {
+		this.checkArguments(a, b, 'divide');
+		if (b.val === 0) {
+			throw new Error('Divison by zero');
+		}
+		return new Result((a.val as number) % (b.val as number));
 	};
 }
