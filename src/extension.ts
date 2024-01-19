@@ -187,11 +187,13 @@ class Parser {
 	private tokens: Token[];
 	private currentToken: Token;
 	private position: number;
+	private arithmetic: math.Arithmetic;
 
 	constructor(tokens: Token[]) {
 		this.tokens = tokens;
 		this.position = 0;
 		this.currentToken = this.tokens[this.position];
+		this.arithmetic = new math.JsArithmetic();
 	}
 
 	private advance(): void {
@@ -243,23 +245,12 @@ class Parser {
 		) {
 			const token = this.currentToken;
 			this.advance();
-
-			if (typeof result.val !== 'number') {
-				throw new Error(`Unexpected token ${this.tokens[this.position]}.
-					Trying to multiply a ${typeof result.val}`);
-			}
-
 			let right = this.factor();
 
-			if (typeof right.val !== 'number') {
-				throw new Error(`Unexpected token ${this.tokens[this.position]}.
-					Trying to multiply a ${typeof right.val}`);
-			}
-
 			if (token.type === TokenType.Multiply) {
-				result.val *= right.val;
+				result = this.arithmetic.mul(result, right);
 			} else if (token.type === TokenType.Divide) {
-				result.val /= right.val;
+				result = this.arithmetic.div(result, right);
 			}
 		}
 		return result;
@@ -270,23 +261,12 @@ class Parser {
 		while (this.currentToken.type === TokenType.Plus || this.currentToken.type === TokenType.Minus) {
 			const token = this.currentToken;
 			this.advance();
-
-			if (typeof result.val !== 'number') {
-				throw new Error(`Unexpected token ${this.tokens[this.position]}.
-					Trying to add a ${typeof result.val}`);
-			}
-
 			let right = this.term();
 
-			if (typeof right.val !== 'number') {
-				throw new Error(`Unexpected token ${this.tokens[this.position]}.
-					Trying to add a ${typeof right.val}`);
-			}
-
 			if (token.type === TokenType.Plus) {
-				result.val += right.val;
+				result = this.arithmetic.add(result, right);
 			} else if (token.type === TokenType.Minus) {
-				result.val -= right.val;
+				result = this.arithmetic.sub(result, right);
 			}
 		}
 		return result;
@@ -335,7 +315,7 @@ function trimLine(s: string): string {
 	let start = 0;
 	let re = new RegExp('(?:#+|//+|/[*]+|=)', 'g');
 	let m = re.exec(s);
-	while (m != null) {
+	while (m !== null) {
 		start = m.index + m[0].length;
 		m = re.exec(s);
 	}

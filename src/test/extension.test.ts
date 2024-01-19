@@ -20,6 +20,7 @@ suite('Extension Test Suite', () => {
 		assert.throws(() => { evaluateExpression(' '); });
 		assert.throws(() => { evaluateExpression('1+'); });
 		assert.throws(() => { evaluateExpression('+1'); });
+		assert.throws(() => { evaluateExpression('1/0'); });
 	});
 
 	test('Base tokens', () => {
