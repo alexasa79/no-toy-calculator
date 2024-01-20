@@ -61,7 +61,17 @@ class Lexer {
 
 	private number(): string {
 		let result = '';
-		while (this.currentChar !== null && this.isDigit(this.currentChar)) {
+		let dot = false;
+		while (
+			(this.currentChar !== null) &&
+			(this.isDigit(this.currentChar) || this.currentChar === '.'))
+		{
+			if (this.currentChar === '.') {
+				if (dot) {
+					throw new Error(`Unexpected token ${this.currentChar}`);
+				}
+				dot = true;
+			}
 			result += this.currentChar;
 			this.advance();
 		}
@@ -130,6 +140,9 @@ class Lexer {
 			if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'o') {
 				this.advance();
 				return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
+			}
+			if (this.currentChar === '.') {
+				return new Token(TokenType.Number, this.number(), positionBefore);
 			}
 			if (this.isDigit(this.currentChar)) {
 				return new Token(TokenType.Number, this.number(), positionBefore);
@@ -200,11 +213,11 @@ class Parser {
 	private position: number;
 	private arithmetic: math.Arithmetic;
 
-	constructor(tokens: Token[]) {
+	constructor(tokens: Token[], arithmetic: math.Arithmetic) {
 		this.tokens = tokens;
 		this.position = 0;
 		this.currentToken = this.tokens[this.position];
-		this.arithmetic = new math.JsArithmetic();
+		this.arithmetic = arithmetic;
 	}
 
 	private advance(): void {
@@ -217,20 +230,30 @@ class Parser {
 		const token = this.currentToken;
 		if (token.type === TokenType.Number) {
 			this.advance();
-			return new math.Result(parseInt(token.value, 10));
+			return this.arithmetic.parseNumber(token.value, 10);
 		} else if (token.type === TokenType.HexNumber) {
 			this.advance();
-			return new math.Result(parseInt(token.value, 16));
+			return this.arithmetic.parseNumber(token.value, 16);
 		} else if (token.type === TokenType.OctNumber) {
 			this.advance();
-			return new math.Result(parseInt(token.value, 8));
+			return this.arithmetic.parseNumber(token.value, 8);
 		} else if (token.type === TokenType.BinNumber) {
 			this.advance();
-			return new math.Result(parseInt(token.value, 2));
+			return this.arithmetic.parseNumber(token.value, 2);
 		} else if (token.type === TokenType.Identifier) {
 			this.advance();
 			let right = this.expr();
-			right.base = token.value as math.OutputBase;
+			if (token.value === 'dec') {
+				right.base = 10;
+			} else if (token.value === 'hex') {
+				right.base = 16;
+			} else if (token.value === 'oct') {
+				right.base = 8;
+			} else if (token.value === 'bin') {
+				right.base = 2;
+			} else {
+				throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
+			}
 			return right;
 		} else if (token.type === TokenType.Variable) {
 			this.advance();
@@ -309,22 +332,16 @@ class Parser {
 export function evaluateExpression(expr: string): string {
 	const lexer = new Lexer(expr);
 	const tokens = lexer.tokenize();
-	const parser = new Parser(tokens);
+
+	const arithmetic = new math.JsArithmetic();
+	const parser = new Parser(tokens, arithmetic);
 	let result = parser.parse();
+
 	debug(`${expr} -> ${result}`);
 
 	lastResult = result;
 
-	if (result.base === 'dec') {
-		return `${result.val}`;
-	} else if (result.base === 'hex') {
-		return `0x${result.val.toString(16)}`;
-	} else if (result.base === 'oct') {
-		return `0o${result.val.toString(8)}`;
-	} else if (result.base === 'bin') {
-		return `0b${result.val.toString(2)}`;
-	}
-	return "";
+	return arithmetic.toString(result);
 }
 
 export function evaluateExpressionSafe(expr: string): string {

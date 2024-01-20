@@ -42,4 +42,13 @@ suite('Extension Test Suite', () => {
 		assert.strictEqual(evaluateExpression('3+2**4-5'), '14');
 		assert.strictEqual(evaluateExpression('(3+2)**2*2'), '50');
 	});
+
+	test('Floating point', () => {
+		assert.strictEqual(evaluateExpression('0.1'), '0.1');
+		assert.strictEqual(evaluateExpression('.1'), '0.1');
+		assert.strictEqual(evaluateExpression('10*0.1'), '1');
+		assert.throws(() => { evaluateExpression('.1.1)'); });
+		assert.throws(() => { evaluateExpression('hex .1)'); });
+		assert.throws(() => { evaluateExpression('bin 3/2)'); });
+	});
 });

@@ -1,12 +1,10 @@
-export type OutputBase = 'dec' | 'hex' | 'bin' | 'oct';
-
 export class Result {
 	val: number | string;
-	base: OutputBase;
+	base: number;
 
 	constructor(result: number | string) {
 		this.val = result;
-		this.base = 'dec';
+		this.base = 10;
 	}
 
 	toString(): string {
@@ -15,6 +13,8 @@ export class Result {
 }
 
 export interface Arithmetic {
+	parseNumber(s: string, base: number): Result;
+	toString(r: Result): string;
 	add(a: Result, b: Result): Result;
 	sub(a: Result, b: Result): Result;
 	mul(a: Result, b: Result): Result;
@@ -31,6 +31,34 @@ export class JsArithmetic implements Arithmetic {
 		if (typeof b.val !== 'number') {
 			throw new Error(`Trying to ${what} non numeric value ${b.val}`);
 		}
+	}
+
+	parseNumber(s: string, base: number): Result {
+		if (s.includes('.')) {
+			return new Result(parseFloat(s));
+		} else {
+			return new Result(parseInt(s, base));
+		}
+	}
+
+	toString(r: Result): string {
+		if (typeof r.val !== 'number') {
+			throw new Error(`Unsupported result value ${r.val} of type ${typeof r.val}`);
+		}
+
+		if (r.base !== 10 && Math.round(r.val) !== r.val) {
+			throw new Error(`Arithmetic cannot produce floating point number in base ${r.base}`);
+		}
+
+		let prefix = "";
+		if (r.base === 16) {
+			prefix = "0x";
+		} else if (r.base === 8) {
+			prefix = "0o";
+		} else if (r.base === 2) {
+			prefix = "0b";
+		}
+		return prefix + r.val.toString(r.base);
 	}
 
 	add(a: Result, b: Result): Result {
