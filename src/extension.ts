@@ -209,7 +209,6 @@ let lastResult: math.Result = new math.Result(0);
 
 class Parser {
     private tokens: Token[];
-    private currentToken: Token;
     private position: number;
     private arithmetic: math.Arithmetic;
     public base: number;
@@ -217,19 +216,20 @@ class Parser {
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
-        this.currentToken = this.tokens[this.position];
         this.arithmetic = arithmetic;
         this.base = 10;
     }
 
     private advance(): void {
         this.position += 1;
-        this.currentToken = this.tokens[this.position] ||
-            new Token(TokenType.EOF, '', this.position);
+    }
+
+    private currentToken(): Token {
+        return this.tokens[this.position] || new Token(TokenType.EOF, '', this.position);
     }
 
     private factor(): math.Result {
-        const token = this.currentToken;
+        const token = this.currentToken();
         if (token.type === TokenType.Minus) {
             this.advance();
             let t = this.factor();
@@ -255,7 +255,7 @@ class Parser {
         } else if (token.type === TokenType.LParen) {
             this.advance();
             const result = this.expr();
-            if (this.currentToken.type !== TokenType.RParen) {
+            if (this.currentToken().type !== TokenType.RParen) {
                 throw new Error(`Mismatched parentheses at ${this.tokens[this.position]}`);
             }
             this.advance();
@@ -267,8 +267,8 @@ class Parser {
 
     private exponent(): math.Result {
         let left = this.factor();
-        while (this.currentToken.type === TokenType.Exponentiation) {
-            const token = this.currentToken;
+        while (this.currentToken().type === TokenType.Exponentiation) {
+            const token = this.currentToken();
             this.advance();
             let right = this.factor();
             left = this.arithmetic.exp(left, right);
@@ -279,11 +279,11 @@ class Parser {
     private term(): math.Result {
         let left = this.exponent();
         while (
-            this.currentToken.type === TokenType.Multiply ||
-            this.currentToken.type === TokenType.Divide ||
-            this.currentToken.type === TokenType.Modulo
+            this.currentToken().type === TokenType.Multiply ||
+            this.currentToken().type === TokenType.Divide ||
+            this.currentToken().type === TokenType.Modulo
         ) {
-            const token = this.currentToken;
+            const token = this.currentToken();
             this.advance();
             let right = this.exponent();
 
@@ -301,10 +301,10 @@ class Parser {
     public expr(): math.Result {
         let result = this.term();
         while (
-            this.currentToken.type === TokenType.Plus ||
-            this.currentToken.type === TokenType.Minus
+            this.currentToken().type === TokenType.Plus ||
+            this.currentToken().type === TokenType.Minus
         ) {
-            const token = this.currentToken;
+            const token = this.currentToken();
             this.advance();
             let right = this.term();
 
@@ -323,23 +323,32 @@ class Parser {
             if (token.type === TokenType.Identifier) {
                 if (token.value === 'dec') {
                     this.base = 10;
+                    this.tokens.splice(this.position, 1);
                 } else if (token.value === 'hex') {
                     this.base = 16;
+                    this.tokens.splice(this.position, 1);
                 } else if (token.value === 'oct') {
                     this.base = 8;
+                    this.tokens.splice(this.position, 1);
                 } else if (token.value === 'bin') {
                     this.base = 2;
+                    this.tokens.splice(this.position, 1);
+                } else if (token.value === 'pre') {
+                    let initialPosition = this.position;
+                    this.position += 1;
+                    let pr = this.factor();
+                    this.arithmetic.setPrecision(parseInt(pr.toString()));
+                    this.tokens.splice(initialPosition, this.position - initialPosition);
+                    this.position = initialPosition;
                 } else {
                     throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
                 }
-                this.tokens.splice(this.position, 1);
             } else {
                 this.position += 1;
             }
         }
 
         this.position = 0;
-        this.currentToken = this.tokens[0];
     }
 
     public parse(): math.Result {
@@ -409,7 +418,7 @@ function evaluate() {
         debug(`Current position: ${pos.line}, ${pos.character}`);
         debug(`Evaluating line: ${currentLine}`);
 
-        if (currentLine.length === 0 || currentLine.length > 120) {
+        if (currentLine.length === 0 || currentLine.length > 1024) {
             err(`Expression's length ${currentLine.length} does not make sense`);
             return;
         }

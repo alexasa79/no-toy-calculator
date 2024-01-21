@@ -8,11 +8,12 @@ export class Result {
     }
 
     toString(): string {
-        return `[val=${this.val}]`;
+        return `${this.val}`;
     }
 }
 
 export interface Arithmetic {
+    setPrecision(n: number): number;
     parseNumber(s: string, base: number): Result;
     toString(r: Result, base: number): string;
     add(a: Result, b: Result): Result;
@@ -28,8 +29,13 @@ export class DecimalArithmetic implements Arithmetic {
         decimal.Decimal.set({
             toExpPos: 1000,
             toExpNeg: -1000,
-            precision: 1000,
         });
+    }
+
+    setPrecision(n: number): number {
+        let res = decimal.Decimal.precision;
+        decimal.Decimal.set({ precision: n });
+        return res;
     }
 
     checkArguments(a: Result, b: Result, what: string) {

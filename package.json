@@ -27,7 +27,8 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "build": "vsce package"
+    "build": "vsce package",
+    "sandbox": "npm run compile && node out/sandbox.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
