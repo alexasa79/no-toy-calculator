@@ -249,19 +249,18 @@ class Parser {
             return this.arithmetic.parseNumber(token.value, 2);
         } else if (token.type === TokenType.Identifier) {
             this.advance();
-            let right = this.expr();
             if (token.value === 'dec') {
-                right.base = 10;
+                this.arithmetic.base = 10;
             } else if (token.value === 'hex') {
-                right.base = 16;
+                this.arithmetic.base = 16;
             } else if (token.value === 'oct') {
-                right.base = 8;
+                this.arithmetic.base = 8;
             } else if (token.value === 'bin') {
-                right.base = 2;
+                this.arithmetic.base = 2;
             } else {
                 throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
             }
-            return right;
+            return this.expr();
         } else if (token.type === TokenType.Variable) {
             this.advance();
             return lastResult;

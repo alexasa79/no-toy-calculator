@@ -2,19 +2,19 @@ import * as decimal from "decimal.js";
 
 export class Result {
     val: number | decimal.Decimal;
-    base: number;
 
     constructor(value: number | decimal.Decimal) {
         this.val = value;
-        this.base = 10;
     }
 
     toString(): string {
-        return `[base=${this.base}, val=${this.val}]`;
+        return `[val=${this.val}]`;
     }
 }
 
 export interface Arithmetic {
+    base: number;
+
     parseNumber(s: string, base: number): Result;
     toString(r: Result): string;
     add(a: Result, b: Result): Result;
@@ -26,12 +26,16 @@ export interface Arithmetic {
 }
 
 export class DecimalArithmetic implements Arithmetic {
+    base: number;
+
     constructor() {
         decimal.Decimal.set({
             toExpPos: 1000,
             toExpNeg: -1000,
             precision: 1000,
         });
+
+        this.base = 10;
     }
 
     checkArguments(a: Result, b: Result, what: string) {
@@ -62,11 +66,11 @@ export class DecimalArithmetic implements Arithmetic {
             throw new Error(`Unsupported result value ${r.val} of type ${typeof r.val}`);
         }
 
-        if (r.base === 16) {
+        if (this.base === 16) {
             return r.val.toHexadecimal();
-        } else if (r.base === 8) {
+        } else if (this.base === 8) {
             return r.val.toOctal();
-        } else if (r.base === 2) {
+        } else if (this.base === 2) {
             return r.val.toBinary();
         } else {
             return r.val.toString();
