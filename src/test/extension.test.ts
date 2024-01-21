@@ -30,6 +30,7 @@ suite('Extension Test Suite', () => {
 
     test('Bases', () => {
         assert.strictEqual(evaluateExpression('hex 10'), '0xa');
+        assert.strictEqual(evaluateExpression('10 hex'), '0xa');
         assert.strictEqual(evaluateExpression('bin 10'), '0b1010');
         assert.strictEqual(evaluateExpression('oct 10'), '0o12');
     });

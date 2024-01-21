@@ -249,20 +249,6 @@ class Parser {
         } else if (token.type === TokenType.BinNumber) {
             this.advance();
             return this.arithmetic.parseNumber(token.value, 2);
-        } else if (token.type === TokenType.Identifier) {
-            this.advance();
-            if (token.value === 'dec') {
-                this.base = 10;
-            } else if (token.value === 'hex') {
-                this.base = 16;
-            } else if (token.value === 'oct') {
-                this.base = 8;
-            } else if (token.value === 'bin') {
-                this.base = 2;
-            } else {
-                throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
-            }
-            return this.expr();
         } else if (token.type === TokenType.Variable) {
             this.advance();
             return lastResult;
@@ -331,7 +317,34 @@ class Parser {
         return result;
     }
 
+    private preprocess() {
+        while (this.position < this.tokens.length) {
+            let token = this.tokens[this.position];
+            if (token.type === TokenType.Identifier) {
+                if (token.value === 'dec') {
+                    this.base = 10;
+                } else if (token.value === 'hex') {
+                    this.base = 16;
+                } else if (token.value === 'oct') {
+                    this.base = 8;
+                } else if (token.value === 'bin') {
+                    this.base = 2;
+                } else {
+                    throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
+                }
+                this.tokens.splice(this.position, 1);
+            } else {
+                this.position += 1;
+            }
+        }
+
+        this.position = 0;
+        this.currentToken = this.tokens[0];
+    }
+
     public parse(): math.Result {
+        this.preprocess();
+
         let result = this.expr();
         if (this.position < this.tokens.length) {
             throw new Error(`Unexpected token ${this.tokens[this.position]}`);
