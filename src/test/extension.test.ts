@@ -4,7 +4,7 @@ import * as assert from 'assert';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { evaluateExpression } from '../extension';
-// import * as my from '../../extension';
+import * as decimal from 'decimal.js';
 
 suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
@@ -15,17 +15,20 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('2+(0x2*2)'), '6');
         assert.strictEqual(evaluateExpression('2+(0b1+01)*2'), '6');
         assert.strictEqual(evaluateExpression('5%2'), '1');
+        assert.strictEqual(evaluateExpression('-1'), '-1');
+        assert.strictEqual(evaluateExpression('-1-1'), '-2');
+        assert.strictEqual(evaluateExpression('-1+1'), '0');
+        assert.strictEqual(evaluateExpression('+1'), '1');
         assert.throws(() => { evaluateExpression('1+1)'); });
         assert.throws(() => { evaluateExpression('(1+2'); });
         assert.throws(() => { evaluateExpression('2+(0b1+01)*2)'); });
         assert.throws(() => { evaluateExpression(' '); });
         assert.throws(() => { evaluateExpression('1+'); });
-        assert.throws(() => { evaluateExpression('+1'); });
         assert.throws(() => { evaluateExpression('1/0'); });
         assert.throws(() => { evaluateExpression('1%0'); });
     });
 
-    test('Base tokens', () => {
+    test('Bases', () => {
         assert.strictEqual(evaluateExpression('hex 10'), '0xa');
         assert.strictEqual(evaluateExpression('bin 10'), '0b1010');
         assert.strictEqual(evaluateExpression('oct 10'), '0o12');
@@ -50,5 +53,12 @@ suite('Extension Test Suite', () => {
         assert.throws(() => { evaluateExpression('.1.1)'); });
         assert.throws(() => { evaluateExpression('hex .1)'); });
         assert.throws(() => { evaluateExpression('bin 3/2)'); });
+    });
+
+    test('Large numbers', () => {
+        let n1 = '1320745023740273048132818024750347852837401938412843017340173743860.0000000000000000000000000000000000000000000000000000000000001';
+        assert.strictEqual(evaluateExpression(n1), n1);
+        let n2 = '-2320745023740273048132818024750347852837401938412843017340173743860.0000000000000000000000000000000000000000000000000000000000002';
+        assert.strictEqual(evaluateExpression(n2), n2);
     });
 });

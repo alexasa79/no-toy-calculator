@@ -228,7 +228,14 @@ class Parser {
 
     private factor(): math.Result {
         const token = this.currentToken;
-        if (token.type === TokenType.Number) {
+        if (token.type === TokenType.Minus) {
+            this.advance();
+            let t = this.factor();
+            return this.arithmetic.mul(t, this.arithmetic.parseNumber('-1', 10));
+        } else if (token.type === TokenType.Plus) {
+            this.advance();
+            return this.factor();
+        } else if (token.type === TokenType.Number) {
             this.advance();
             return this.arithmetic.parseNumber(token.value, 10);
         } else if (token.type === TokenType.HexNumber) {
@@ -333,7 +340,7 @@ export function evaluateExpression(expr: string): string {
     const lexer = new Lexer(expr);
     const tokens = lexer.tokenize();
 
-    const arithmetic = new math.JsArithmetic();
+    const arithmetic = new math.DecimalArithmetic();
     const parser = new Parser(tokens, arithmetic);
     let result = parser.parse();
 
