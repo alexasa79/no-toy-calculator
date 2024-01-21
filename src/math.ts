@@ -13,10 +13,8 @@ export class Result {
 }
 
 export interface Arithmetic {
-    base: number;
-
     parseNumber(s: string, base: number): Result;
-    toString(r: Result): string;
+    toString(r: Result, base: number): string;
     add(a: Result, b: Result): Result;
     sub(a: Result, b: Result): Result;
     mul(a: Result, b: Result): Result;
@@ -26,16 +24,12 @@ export interface Arithmetic {
 }
 
 export class DecimalArithmetic implements Arithmetic {
-    base: number;
-
     constructor() {
         decimal.Decimal.set({
             toExpPos: 1000,
             toExpNeg: -1000,
             precision: 1000,
         });
-
-        this.base = 10;
     }
 
     checkArguments(a: Result, b: Result, what: string) {
@@ -61,16 +55,16 @@ export class DecimalArithmetic implements Arithmetic {
         }
     }
 
-    toString(r: Result): string {
+    toString(r: Result, base: number): string {
         if (!decimal.Decimal.isDecimal(r.val)) {
             throw new Error(`Unsupported result value ${r.val} of type ${typeof r.val}`);
         }
 
-        if (this.base === 16) {
+        if (base === 16) {
             return r.val.toHexadecimal();
-        } else if (this.base === 8) {
+        } else if (base === 8) {
             return r.val.toOctal();
-        } else if (this.base === 2) {
+        } else if (base === 2) {
             return r.val.toBinary();
         } else {
             return r.val.toString();

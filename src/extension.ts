@@ -212,12 +212,14 @@ class Parser {
     private currentToken: Token;
     private position: number;
     private arithmetic: math.Arithmetic;
+    public base: number;
 
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
         this.currentToken = this.tokens[this.position];
         this.arithmetic = arithmetic;
+        this.base = 10;
     }
 
     private advance(): void {
@@ -250,13 +252,13 @@ class Parser {
         } else if (token.type === TokenType.Identifier) {
             this.advance();
             if (token.value === 'dec') {
-                this.arithmetic.base = 10;
+                this.base = 10;
             } else if (token.value === 'hex') {
-                this.arithmetic.base = 16;
+                this.base = 16;
             } else if (token.value === 'oct') {
-                this.arithmetic.base = 8;
+                this.base = 8;
             } else if (token.value === 'bin') {
-                this.arithmetic.base = 2;
+                this.base = 2;
             } else {
                 throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
             }
@@ -312,7 +314,10 @@ class Parser {
 
     public expr(): math.Result {
         let result = this.term();
-        while (this.currentToken.type === TokenType.Plus || this.currentToken.type === TokenType.Minus) {
+        while (
+            this.currentToken.type === TokenType.Plus ||
+            this.currentToken.type === TokenType.Minus
+        ) {
             const token = this.currentToken;
             this.advance();
             let right = this.term();
@@ -347,7 +352,7 @@ export function evaluateExpression(expr: string): string {
 
     lastResult = result;
 
-    return arithmetic.toString(result);
+    return arithmetic.toString(result, parser.base);
 }
 
 export function evaluateExpressionSafe(expr: string): string {
