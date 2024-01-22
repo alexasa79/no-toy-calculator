@@ -75,6 +75,12 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('1g'), '1000000000');
         assert.strictEqual(evaluateExpression('1b'), '1000000000');
         assert.strictEqual(evaluateExpression('1m'), '1000000');
+
+        assert.strictEqual(evaluateExpression('k'), '1000');
+        assert.strictEqual(evaluateExpression('1k/1k'), '1');
+        assert.strictEqual(evaluateExpression('k/k'), '1');
+        assert.strictEqual(evaluateExpression('24+1k'), '1024');
+        assert.strictEqual(evaluateExpression('(24+1)k'), '25000');
     });
 
     test('Comma separated', () => {

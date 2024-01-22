@@ -11,7 +11,7 @@ class Token {
         public position: number) { }
 
     public toString(): string {
-        return `${this.type} ${this.value} at offset ${this.position}`;
+        return `[${this.type} ${this.value} @${this.position}]`;
     }
 }
 
@@ -221,6 +221,7 @@ class Parser {
     private tokens: Token[];
     private position: number;
     private arithmetic: math.Arithmetic;
+    private unitConversions: Map<string, string>;
 
     public base: number;
     public commaSeparated: boolean;
@@ -231,6 +232,18 @@ class Parser {
         this.arithmetic = arithmetic;
         this.base = 10;
         this.commaSeparated = false;
+        this.unitConversions = new Map<string, string>([
+            ['pi', '1125899906842624'],
+            ['ti', '1099511627776'],
+            ['gi', '1073741824'],
+            ['mi', '1048576'],
+            ['ki', '1024'],
+            ['q', '1000000000000'],
+            ['g', '1000000000'],
+            ['b', '1000000000'],
+            ['m', '1000000'],
+            ['k', '1000'],
+        ]);
     }
 
     private advance(): void {
@@ -294,39 +307,18 @@ class Parser {
         while (
             this.currentToken().type === TokenType.Multiply ||
             this.currentToken().type === TokenType.Divide ||
-            this.currentToken().type === TokenType.Modulo ||
-            this.currentToken().type === TokenType.Identifier
+            this.currentToken().type === TokenType.Modulo
         ) {
             const token = this.currentToken();
             this.advance();
+            let right = this.exponent();
 
             if (token.type === TokenType.Multiply) {
-                let right = this.exponent();
                 left = this.arithmetic.mul(left, right);
             } else if (token.type === TokenType.Divide) {
-                let right = this.exponent();
                 left = this.arithmetic.div(left, right);
             } else if (token.type === TokenType.Modulo) {
-                let right = this.exponent();
                 left = this.arithmetic.mod(left, right);
-            } else if (token.type === TokenType.Identifier) {
-                const unitConversions = new Map<string, string>([
-                    ['pi', '1125899906842624'],
-                    ['ti', '1099511627776'],
-                    ['gi', '1073741824'],
-                    ['mi', '1048576'],
-                    ['ki', '1024'],
-                    ['q', '1000000000000'],
-                    ['g', '1000000000'],
-                    ['b', '1000000000'],
-                    ['m', '1000000'],
-                    ['k', '1000'],
-                ]);
-
-                if (unitConversions.has(token.value)) {
-                    let multiplier = unitConversions.get(token.value)!;
-                    left = this.arithmetic.mul(left, this.arithmetic.parseNumber(multiplier, 10));
-                }
             }
         }
         return left;
@@ -377,6 +369,35 @@ class Parser {
                 } else if (token.value === 'cs') {
                     this.commaSeparated = true;
                     this.tokens.splice(this.position, 1);
+                } else if (this.unitConversions.has(token.value)) {
+                    const numericTokens = [
+                        TokenType.Number,
+                        TokenType.HexNumber,
+                        TokenType.BinNumber,
+                        TokenType.OctNumber
+                    ];
+                    const multiplier = this.unitConversions.get(token.value)!;
+                    if (this.position > 0 && numericTokens.includes(this.tokens[this.position - 1].type)) {
+                        const numberPos = this.position - 1;
+                        // 1k -> (1k
+                        this.tokens.splice(numberPos, 0,
+                            new Token(TokenType.LParen, '(', token.position));
+                        // (1k -> (1*1000)
+                        this.tokens.splice(numberPos + 2, 1,
+                            new Token(TokenType.Multiply, '*', token.position),
+                            new Token(TokenType.Number, multiplier, token.position),
+                            new Token(TokenType.RParen, ')', token.position),
+                        );
+                    } else if (this.position > 0 && this.tokens[this.position - 1].type === TokenType.RParen) {
+                        this.tokens.splice(this.position, 1,
+                            new Token(TokenType.Multiply, '*', token.position),
+                            new Token(TokenType.Number, multiplier, token.position)
+                        );
+                    } else {
+                        this.tokens.splice(this.position, 1,
+                            new Token(TokenType.Number, multiplier, token.position));
+                    }
+                    this.position += 1;
                 } else {
                     this.position += 1;
                 }
@@ -386,6 +407,8 @@ class Parser {
         }
 
         this.position = 0;
+
+        debug(`Tokens after proprocessor: ${this.tokens.map(obj => obj.toString()).join(', ')}`);
     }
 
     public parse(): math.Result {
@@ -408,6 +431,8 @@ function addCommas(x: string, every: number) {
 }
 
 export function evaluateExpression(expr: string): string {
+    debug(`evaluating: ${expr}`);
+
     const lexer = new Lexer(expr);
     const tokens = lexer.tokenize();
 
