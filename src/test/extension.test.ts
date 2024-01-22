@@ -68,4 +68,8 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('10ki'), '10240');
         assert.strictEqual(evaluateExpression('10k ki'), '10240000');
     });
+
+    test('Comma separated', () => {
+        assert.strictEqual(evaluateExpression('10,000'), '10000');
+    });
 });

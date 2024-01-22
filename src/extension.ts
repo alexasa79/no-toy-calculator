@@ -64,15 +64,21 @@ class Lexer {
         let dot = false;
         while (
             (this.currentChar !== null) &&
-            (this.isDigit(this.currentChar) || this.currentChar === '.'))
-        {
+            (
+                this.isDigit(this.currentChar) ||
+                this.currentChar === '.' ||
+                this.currentChar === ','
+            )
+        ) {
             if (this.currentChar === '.') {
                 if (dot) {
                     throw new Error(`Unexpected token ${this.currentChar}`);
                 }
                 dot = true;
             }
-            result += this.currentChar;
+            if (this.currentChar !== ',') {
+                result += this.currentChar;
+            }
             this.advance();
         }
         return result;
