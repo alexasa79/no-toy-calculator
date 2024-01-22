@@ -67,6 +67,14 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('10k'), '10000');
         assert.strictEqual(evaluateExpression('10ki'), '10240');
         assert.strictEqual(evaluateExpression('10k ki'), '10240000');
+        assert.strictEqual(evaluateExpression('1mi'), '1048576');
+        assert.strictEqual(evaluateExpression('1gi'), '1073741824');
+        assert.strictEqual(evaluateExpression('1ti'), '1099511627776');
+        assert.strictEqual(evaluateExpression('1pi'), '1125899906842624');
+        assert.strictEqual(evaluateExpression('1q'), '1000000000000');
+        assert.strictEqual(evaluateExpression('1g'), '1000000000');
+        assert.strictEqual(evaluateExpression('1b'), '1000000000');
+        assert.strictEqual(evaluateExpression('1m'), '1000000');
     });
 
     test('Comma separated', () => {
