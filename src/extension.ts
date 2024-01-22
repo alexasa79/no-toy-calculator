@@ -281,18 +281,38 @@ class Parser {
         while (
             this.currentToken().type === TokenType.Multiply ||
             this.currentToken().type === TokenType.Divide ||
-            this.currentToken().type === TokenType.Modulo
+            this.currentToken().type === TokenType.Modulo ||
+            this.currentToken().type === TokenType.Identifier
         ) {
             const token = this.currentToken();
             this.advance();
-            let right = this.exponent();
 
             if (token.type === TokenType.Multiply) {
+                let right = this.exponent();
                 left = this.arithmetic.mul(left, right);
             } else if (token.type === TokenType.Divide) {
+                let right = this.exponent();
                 left = this.arithmetic.div(left, right);
             } else if (token.type === TokenType.Modulo) {
+                let right = this.exponent();
                 left = this.arithmetic.mod(left, right);
+            } else if (token.type === TokenType.Identifier) {
+                const unitConversions = new Map<string, string>([
+                    ['pi', '1125899906842624'],
+                    ['ti', '109521666048'],
+                    ['gi', '1073741824'],
+                    ['mi', '1048576'],
+                    ['ki', '1024'],
+                    ['t', '1000000000000'],
+                    ['g', '1000000000'],
+                    ['m', '1000000'],
+                    ['k', '1000'],
+                ]);
+
+                if (unitConversions.has(token.value)) {
+                    let multiplier = unitConversions.get(token.value)!;
+                    left = this.arithmetic.mul(left, this.arithmetic.parseNumber(multiplier, 10));
+                }
             }
         }
         return left;
@@ -341,7 +361,7 @@ class Parser {
                     this.tokens.splice(initialPosition, this.position - initialPosition);
                     this.position = initialPosition;
                 } else {
-                    throw new Error(`Unexpected function at ${this.tokens[this.position]}`);
+                    this.position += 1;
                 }
             } else {
                 this.position += 1;

@@ -62,4 +62,10 @@ suite('Extension Test Suite', () => {
         let n2 = '-2320745023740273048132818024750347852837401938412843017340173743861.0000000000000000000000000000000000000000000000000000000000002';
         assert.strictEqual(evaluateExpression(`pre 130 ${n2}`), n2);
     });
+
+    test('Units', () => {
+        assert.strictEqual(evaluateExpression('10k'), '10000');
+        assert.strictEqual(evaluateExpression('10ki'), '10240');
+        assert.strictEqual(evaluateExpression('10k ki'), '10240000');
+    });
 });
