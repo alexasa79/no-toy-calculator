@@ -211,21 +211,26 @@ class Lexer {
     }
 }
 
-let lastResult: math.Result = new math.Result(0);
+let global = {
+    lastResult: new math.Result(0),
+    base: 10,
+    commaSeparated: false
+};
 
 class Parser {
     private tokens: Token[];
     private position: number;
     private arithmetic: math.Arithmetic;
+
     public base: number;
-    public commaSeparate: boolean;
+    public commaSeparated: boolean;
 
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
         this.arithmetic = arithmetic;
         this.base = 10;
-        this.commaSeparate = false;
+        this.commaSeparated = false;
     }
 
     private advance(): void {
@@ -259,7 +264,7 @@ class Parser {
             return this.arithmetic.parseNumber(token.value, 2);
         } else if (token.type === TokenType.Variable) {
             this.advance();
-            return lastResult;
+            return global.lastResult;
         } else if (token.type === TokenType.LParen) {
             this.advance();
             const result = this.expr();
@@ -370,7 +375,7 @@ class Parser {
                     this.tokens.splice(initialPosition, this.position - initialPosition);
                     this.position = initialPosition;
                 } else if (token.value === 'cs') {
-                    this.commaSeparate = true;
+                    this.commaSeparated = true;
                     this.tokens.splice(this.position, 1);
                 } else {
                     this.position += 1;
@@ -410,10 +415,10 @@ export function evaluateExpression(expr: string): string {
     const parser = new Parser(tokens, arithmetic);
     let result = parser.parse();
 
-    lastResult = result;
+    global.lastResult = result;
 
     let resultString = arithmetic.toString(result, parser.base);
-    if (parser.base === 10 && parser.commaSeparate) {
+    if (parser.base === 10 && parser.commaSeparated) {
         resultString = addCommas(resultString, 3);
     }
 
