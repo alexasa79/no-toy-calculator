@@ -1,5 +1,10 @@
 # Change Log
 
+## Version 0.0.6
+- Fix `ti` to produce correct value.
+- Always add `=` before result and do not go to new line.
+- Support `cs` produce comma separated result for decimal calculations.
+
 ## Version 0.0.5
 - Support comma-separated numbering, e.g. 1,000,000.
 - Support power of 10 and power of 2 units, like 10k or 100ki.

@@ -3,7 +3,7 @@
   "displayName": "Toy Calculator",
   "description": "",
   "repository": "git@github.com:alexasa79/toy-calculator.git",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "engines": {
     "vscode": "^1.85.0"
   },
