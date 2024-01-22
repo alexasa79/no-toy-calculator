@@ -468,10 +468,8 @@ function evaluate() {
             continue;
         }
 
-        if (!trailingEqual && multipleCursors) {
+        if (!trailingEqual) {
             result = "=" + result;
-        } else if (!multipleCursors) {
-            result = "\n" + result;
         }
 
         results.push(result);
