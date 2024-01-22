@@ -218,12 +218,14 @@ class Parser {
     private position: number;
     private arithmetic: math.Arithmetic;
     public base: number;
+    public commaSeparate: boolean;
 
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
         this.arithmetic = arithmetic;
         this.base = 10;
+        this.commaSeparate = false;
     }
 
     private advance(): void {
@@ -367,6 +369,9 @@ class Parser {
                     this.arithmetic.setPrecision(parseInt(pr.toString()));
                     this.tokens.splice(initialPosition, this.position - initialPosition);
                     this.position = initialPosition;
+                } else if (token.value === 'cs') {
+                    this.commaSeparate = true;
+                    this.tokens.splice(this.position, 1);
                 } else {
                     this.position += 1;
                 }
@@ -389,6 +394,14 @@ class Parser {
     }
 }
 
+function addCommas(x: string, every: number) {
+    var parts = x.toString().split(".");
+    let regex = `\\B(?=(\\d{${every}})+(?!\\d))`;
+    let re = new RegExp(regex, 'g');
+    parts[0] = parts[0].replace(re, ',');
+    return parts.join(".");
+}
+
 export function evaluateExpression(expr: string): string {
     const lexer = new Lexer(expr);
     const tokens = lexer.tokenize();
@@ -397,11 +410,16 @@ export function evaluateExpression(expr: string): string {
     const parser = new Parser(tokens, arithmetic);
     let result = parser.parse();
 
-    debug(`${expr} -> ${result}`);
-
     lastResult = result;
 
-    return arithmetic.toString(result, parser.base);
+    let resultString = arithmetic.toString(result, parser.base);
+    if (parser.base === 10 && parser.commaSeparate) {
+        resultString = addCommas(resultString, 3);
+    }
+
+    debug(`${expr} -> ${resultString}`);
+
+    return resultString;
 }
 
 export function evaluateExpressionSafe(expr: string): string {

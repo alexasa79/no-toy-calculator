@@ -79,5 +79,8 @@ suite('Extension Test Suite', () => {
 
     test('Comma separated', () => {
         assert.strictEqual(evaluateExpression('10,000'), '10000');
+        assert.strictEqual(evaluateExpression('10*100 cs'), '1,000');
+        assert.strictEqual(evaluateExpression('cs 10000*10000'), '100,000,000');
+        assert.strictEqual(evaluateExpression('cs 10000*10000 hex'), '0x5f5e100');
     });
 });
