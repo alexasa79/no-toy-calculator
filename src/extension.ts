@@ -601,15 +601,16 @@ function evaluate() {
             return;
         }
 
+        // Remove trailing `=` from the end of the input string...
+        currentLine = currentLine.trim();
+        let trailingEqual = false;
+        if (currentLine.endsWith('=')) {
+            trailingEqual = true;
+            currentLine = currentLine.substring(0, currentLine.length - 1);
+        }
+
         currentLine = trimLine(currentLine);
         debug(`After trimming: ${currentLine}`);
-
-        // Remove trailing `=` from the end of the input string...
-        let trailingEqual = false;
-        if (currentLine[currentLine.length - 1] === '=') {
-            currentLine = currentLine.substring(0, currentLine.length - 1);
-            trailingEqual = true;
-        }
 
         let result = evaluateExpressionSafe(currentLine);
 
