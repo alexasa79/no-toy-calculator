@@ -10,6 +10,8 @@ suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('Start all tests.');
 
     test('Sample test', () => {
+        assert.strictEqual(evaluateExpression(''), '');
+        assert.strictEqual(evaluateExpression(' '), '');
         assert.strictEqual(evaluateExpression('1+1'), '2');
         assert.strictEqual(evaluateExpression('0x10+1'), '17');
         assert.strictEqual(evaluateExpression('2+(0x2*2)'), '6');
@@ -22,7 +24,6 @@ suite('Extension Test Suite', () => {
         assert.throws(() => { evaluateExpression('1+1)'); });
         assert.throws(() => { evaluateExpression('(1+2'); });
         assert.throws(() => { evaluateExpression('2+(0b1+01)*2)'); });
-        assert.throws(() => { evaluateExpression(' '); });
         assert.throws(() => { evaluateExpression('1+'); });
         assert.throws(() => { evaluateExpression('1/0'); });
         assert.throws(() => { evaluateExpression('1%0'); });
@@ -88,5 +89,12 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('10*100 cs'), '1,000');
         assert.strictEqual(evaluateExpression('cs 10000*10000'), '100,000,000');
         assert.strictEqual(evaluateExpression('cs 10000*10000 hex'), '0x5f5e100');
+    });
+
+    test('Global settings', () => {
+        assert.strictEqual(evaluateExpression('hex!'), '');
+        assert.strictEqual(evaluateExpression('10'), '0xa');
+        assert.strictEqual(evaluateExpression('reset'), '');
+        assert.strictEqual(evaluateExpression('10'), '10');
     });
 });

@@ -26,6 +26,7 @@ enum TokenType {
     Divide = 'DIVIDE',
     Modulo = 'MODULO',
     Exponentiation = 'EXP',
+    Bang = 'BANG',
     LParen = 'LPAREN',
     RParen = 'RPAREN',
     Variable = 'VARIABLE',
@@ -178,6 +179,10 @@ class Lexer {
                 this.advance();
                 return new Token(TokenType.Modulo, '%', positionBefore);
             }
+            if (this.currentChar === '!') {
+                this.advance();
+                return new Token(TokenType.Bang, '!', positionBefore);
+            }
             if (this.currentChar === '(') {
                 this.advance();
                 return new Token(TokenType.LParen, '(', positionBefore);
@@ -207,15 +212,45 @@ class Lexer {
             tokens.push(token);
             token = this.getNextToken();
         }
+        tokens.push(token);
         return tokens;
     }
 }
 
-let global = {
-    lastResult: new math.Result(0),
-    base: 10,
-    commaSeparated: false
-};
+class FuzzySettings {
+    base: number | undefined;
+    commaSeparated: boolean | undefined;
+    precision: number | undefined;
+
+    constructor() {
+        this.base = undefined;
+        this.commaSeparated = undefined;
+        this.precision = undefined;
+    }
+
+    toString() {
+        return `[base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}]`;
+    }
+}
+
+class Settings {
+    base: number;
+    commaSeparated: boolean;
+    precision: number;
+
+    constructor() {
+        this.base = 10;
+        this.commaSeparated = false;
+        this.precision = 20;
+    }
+
+    toString() {
+        return `[base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}]`;
+    }
+}
+
+let lastResult = new math.Result(0);
+let globalSettings = new Settings();
 
 class Parser {
     private tokens: Token[];
@@ -223,15 +258,10 @@ class Parser {
     private arithmetic: math.Arithmetic;
     private unitConversions: Map<string, string>;
 
-    public base: number;
-    public commaSeparated: boolean;
-
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
         this.arithmetic = arithmetic;
-        this.base = 10;
-        this.commaSeparated = false;
         this.unitConversions = new Map<string, string>([
             ['pi', '1125899906842624'],
             ['ti', '1099511627776'],
@@ -277,7 +307,7 @@ class Parser {
             return this.arithmetic.parseNumber(token.value, 2);
         } else if (token.type === TokenType.Variable) {
             this.advance();
-            return global.lastResult;
+            return lastResult;
         } else if (token.type === TokenType.LParen) {
             this.advance();
             const result = this.expr();
@@ -343,32 +373,73 @@ class Parser {
         return result;
     }
 
-    private preprocess() {
+    private handleBang(): boolean {
+        if (this.position >= this.tokens.length) {
+            return false;
+        }
+
+        let token = this.tokens[this.position];
+        if (token.type === TokenType.Bang) {
+            this.tokens.splice(this.position, 1);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public preprocess() : [FuzzySettings, FuzzySettings] {
+        let locals = new FuzzySettings();
+        let globals = new FuzzySettings();
+
         while (this.position < this.tokens.length) {
             let token = this.tokens[this.position];
             if (token.type === TokenType.Identifier) {
-                if (token.value === 'dec') {
-                    this.base = 10;
+                if (token.value === 'reset') {
+                    globals.base = 10;
+                    globals.commaSeparated = false;
+                    globals.precision = 20;
                     this.tokens.splice(this.position, 1);
+                } else if (token.value === 'dec') {
+                    locals.base = 10;
+                    this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.base = 10;
+                    }
                 } else if (token.value === 'hex') {
-                    this.base = 16;
+                    locals.base = 16;
                     this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.base = 16;
+                    }
                 } else if (token.value === 'oct') {
-                    this.base = 8;
+                    locals.base = 8;
                     this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.base = 8;
+                    }
                 } else if (token.value === 'bin') {
-                    this.base = 2;
+                    locals.base = 2;
                     this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.base = 2;
+                    }
                 } else if (token.value === 'pre') {
                     let initialPosition = this.position;
                     this.position += 1;
                     let pr = this.factor();
-                    this.arithmetic.setPrecision(parseInt(pr.toString()));
+                    let precision = parseInt(pr.toString());
+                    locals.precision = precision;
                     this.tokens.splice(initialPosition, this.position - initialPosition);
                     this.position = initialPosition;
+                    if (this.handleBang()) {
+                        globals.precision = precision;
+                    }
                 } else if (token.value === 'cs') {
-                    this.commaSeparated = true;
+                    locals.commaSeparated = true;
                     this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.commaSeparated = true;
+                    }
                 } else if (this.unitConversions.has(token.value)) {
                     const numericTokens = [
                         TokenType.Number,
@@ -408,14 +479,16 @@ class Parser {
 
         this.position = 0;
 
-        debug(`Tokens after proprocessor: ${this.tokens.map(obj => obj.toString()).join(', ')}`);
+        const tokenMap = this.tokens.map(obj => obj.toString()).join(', ');
+        debug(`Tokens after proprocessor [${this.tokens.length}]: ${tokenMap}`);
+
+        return [locals, globals];
     }
 
     public parse(): math.Result {
-        this.preprocess();
-
         let result = this.expr();
-        if (this.position < this.tokens.length) {
+        let token = this.currentToken();
+        if (token.type !== TokenType.EOF) {
             throw new Error(`Unexpected token ${this.tokens[this.position]}`);
         }
         return result;
@@ -430,21 +503,51 @@ function addCommas(x: string, every: number) {
     return parts.join(".");
 }
 
+function sortSettings(locals: FuzzySettings, globals: FuzzySettings): Settings {
+    let s = new Settings();
+
+    globalSettings.base = globals.base ? globals.base : globalSettings.base;
+    globalSettings.precision = globals.precision ? globals.precision : globalSettings.precision;
+    globalSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : globalSettings.commaSeparated;
+
+    if (
+        globals.base ||
+        globals.commaSeparated ||
+        globals.precision
+    ) {
+        info(`Set global settings to ${globalSettings}`);
+    }
+
+    s.base = locals.base ? locals.base : globalSettings.base;
+    s.precision = locals.precision ? locals.precision : globalSettings.precision;
+    s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : globalSettings.commaSeparated;
+
+    return s;
+}
+
 export function evaluateExpression(expr: string): string {
     debug(`evaluating: ${expr}`);
 
     const lexer = new Lexer(expr);
     const tokens = lexer.tokenize();
+    let resultString = '';
 
     const arithmetic = new math.DecimalArithmetic();
     const parser = new Parser(tokens, arithmetic);
-    let result = parser.parse();
 
-    global.lastResult = result;
+    const [locals, globals] = parser.preprocess();
+    let settings = sortSettings(locals, globals);
+    arithmetic.setPrecision(settings.precision);
 
-    let resultString = arithmetic.toString(result, parser.base);
-    if (parser.base === 10 && parser.commaSeparated) {
-        resultString = addCommas(resultString, 3);
+    if (tokens.length !== 1) {
+        let result = parser.parse();
+
+        lastResult = result;
+
+        resultString = arithmetic.toString(result, settings.base!);
+        if (settings.base === 10 && settings.commaSeparated!) {
+            resultString = addCommas(resultString, 3);
+        }
     }
 
     debug(`${expr} -> ${resultString}`);
@@ -517,7 +620,7 @@ function evaluate() {
         }
 
         if (!trailingEqual) {
-            result = "=" + result;
+            result = " = " + result;
         }
 
         results.push(result);
