@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 0.0.8
+- Fix handling of trailing `=` sign.
+- Settings made with `!` operator local to the document and not global.
+
 ## Version 0.0.7
 - Better handle units. Allow expressions like `k`, `k/k` and `(24 + 1)k`.
 - Support global settings with `!` and `reset`.
