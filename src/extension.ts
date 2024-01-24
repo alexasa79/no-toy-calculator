@@ -252,6 +252,14 @@ class Settings {
 let lastResult = new math.Result(0);
 let globalSettings = new Settings();
 
+let settingsMap = new WeakMap;
+function getDocumentSettings(doc: vscode.TextDocument): Settings {
+    if (!settingsMap.has(doc)) {
+        settingsMap.set(doc, new Settings());
+    }
+    return settingsMap.get(doc);
+}
+
 class Parser {
     private tokens: Token[];
     private position: number;
@@ -503,29 +511,33 @@ function addCommas(x: string, every: number) {
     return parts.join(".");
 }
 
-function sortSettings(locals: FuzzySettings, globals: FuzzySettings): Settings {
+function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docSettings?: Settings): Settings {
     let s = new Settings();
 
-    globalSettings.base = globals.base ? globals.base : globalSettings.base;
-    globalSettings.precision = globals.precision ? globals.precision : globalSettings.precision;
-    globalSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : globalSettings.commaSeparated;
+    if (!docSettings) {
+        docSettings = globalSettings;
+    }
+
+    docSettings.base = globals.base ? globals.base : docSettings.base;
+    docSettings.precision = globals.precision ? globals.precision : docSettings.precision;
+    docSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : docSettings.commaSeparated;
 
     if (
         globals.base ||
         globals.commaSeparated ||
         globals.precision
     ) {
-        info(`Set global settings to ${globalSettings}`);
+        info(`Set document-wide settings to ${docSettings}`);
     }
 
-    s.base = locals.base ? locals.base : globalSettings.base;
-    s.precision = locals.precision ? locals.precision : globalSettings.precision;
-    s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : globalSettings.commaSeparated;
+    s.base = locals.base ? locals.base : docSettings.base;
+    s.precision = locals.precision ? locals.precision : docSettings.precision;
+    s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : docSettings.commaSeparated;
 
     return s;
 }
 
-export function evaluateExpression(expr: string): string {
+export function evaluateExpression(expr: string, docSettings?: Settings): string {
     debug(`evaluating: ${expr}`);
 
     const lexer = new Lexer(expr);
@@ -536,7 +548,7 @@ export function evaluateExpression(expr: string): string {
     const parser = new Parser(tokens, arithmetic);
 
     const [locals, globals] = parser.preprocess();
-    let settings = sortSettings(locals, globals);
+    let settings = sortSettings(locals, globals, docSettings);
     arithmetic.setPrecision(settings.precision);
 
     if (tokens.length !== 1) {
@@ -555,9 +567,9 @@ export function evaluateExpression(expr: string): string {
     return resultString;
 }
 
-export function evaluateExpressionSafe(expr: string): string {
+export function evaluateExpressionSafe(expr: string, docSettings: Settings): string {
     try {
-        return evaluateExpression(expr);
+        return evaluateExpression(expr, docSettings);
     } catch (e) {
         err(`Error parsing expression: ${e}`);
     }
@@ -612,7 +624,7 @@ function evaluate() {
         currentLine = trimLine(currentLine);
         debug(`After trimming: ${currentLine}`);
 
-        let result = evaluateExpressionSafe(currentLine);
+        let result = evaluateExpressionSafe(currentLine, getDocumentSettings(editor.document));
 
         if (result === "") {
             debug("evaluateExpressionSafe returned empty result");
