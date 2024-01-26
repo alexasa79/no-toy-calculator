@@ -578,7 +578,7 @@ export function evaluateExpressionSafe(expr: string, docSettings: Settings): str
 
 function trimLine(s: string): string {
     let start = 0;
-    let re = new RegExp('(?:#+|//+|/[*]+|=)', 'g');
+    let re = new RegExp('(?:#+|//+|/[*]+|=|＝)', 'g');
     let m = re.exec(s);
     while (m !== null) {
         start = m.index + m[0].length;
@@ -613,10 +613,10 @@ function evaluate() {
             return;
         }
 
-        // Remove trailing `=` from the end of the input string...
+        // Remove trailing `＝` from the end of the input string...
         currentLine = currentLine.trim();
         let trailingEqual = false;
-        if (currentLine.endsWith('=')) {
+        if (currentLine.endsWith('＝')) {
             trailingEqual = true;
             currentLine = currentLine.substring(0, currentLine.length - 1);
         }
@@ -633,7 +633,7 @@ function evaluate() {
         }
 
         if (!trailingEqual) {
-            result = " = " + result;
+            result = "＝" + result;
         }
 
         results.push(result);
