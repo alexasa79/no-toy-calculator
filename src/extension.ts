@@ -26,6 +26,9 @@ enum TokenType {
     Divide = 'DIVIDE',
     Modulo = 'MODULO',
     Exponentiation = 'EXP',
+    And = 'AND',
+    Or = 'OR',
+    Xor = 'XOR',
     Bang = 'BANG',
     LParen = 'LPAREN',
     RParen = 'RPAREN',
@@ -182,6 +185,18 @@ class Lexer {
             if (this.currentChar === '!') {
                 this.advance();
                 return new Token(TokenType.Bang, '!', positionBefore);
+            }
+            if (this.currentChar === '&') {
+                this.advance();
+                return new Token(TokenType.And, '&', positionBefore);
+            }
+            if (this.currentChar === '|') {
+                this.advance();
+                return new Token(TokenType.Or, '|', positionBefore);
+            }
+            if (this.currentChar === '^') {
+                this.advance();
+                return new Token(TokenType.Xor, '^', positionBefore);
             }
             if (this.currentChar === '(') {
                 this.advance();
@@ -340,7 +355,7 @@ class Parser {
         return left;
     }
 
-    private term(): math.Result {
+    private multiply(): math.Result {
         let left = this.exponent();
         while (
             this.currentToken().type === TokenType.Multiply ||
@@ -362,20 +377,42 @@ class Parser {
         return left;
     }
 
-    public expr(): math.Result {
-        let result = this.term();
+    private add(): math.Result {
+        let result = this.multiply();
         while (
             this.currentToken().type === TokenType.Plus ||
             this.currentToken().type === TokenType.Minus
         ) {
             const token = this.currentToken();
             this.advance();
-            let right = this.term();
+            let right = this.multiply();
 
             if (token.type === TokenType.Plus) {
                 result = this.arithmetic.add(result, right);
             } else if (token.type === TokenType.Minus) {
                 result = this.arithmetic.sub(result, right);
+            }
+        }
+        return result;
+    }
+
+    private expr(): math.Result {
+        let result = this.add();
+        while (
+            this.currentToken().type === TokenType.And ||
+            this.currentToken().type === TokenType.Or ||
+            this.currentToken().type === TokenType.Xor
+        ) {
+            const token = this.currentToken();
+            this.advance();
+            let right = this.add();
+
+            if (token.type === TokenType.And) {
+                result = this.arithmetic.and(result, right);
+            } else if (token.type === TokenType.Or) {
+                result = this.arithmetic.or(result, right);
+            } else if (token.type === TokenType.Xor) {
+                result = this.arithmetic.xor(result, right);
             }
         }
         return result;

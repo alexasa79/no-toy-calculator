@@ -22,6 +22,9 @@ export interface Arithmetic {
     div(a: Result, b: Result): Result;
     mod(a: Result, b: Result): Result;
     exp(a: Result, b: Result): Result;
+    and(a: Result, b: Result): Result;
+    or(a: Result, b: Result): Result;
+    xor(a: Result, b: Result): Result;
 }
 
 export class DecimalArithmetic implements Arithmetic {
@@ -104,7 +107,113 @@ export class DecimalArithmetic implements Arithmetic {
         return new Result((a.val as decimal.Decimal).mod(b.val));
     }
     exp(a: Result, b: Result): Result {
-        this.checkArguments(a, b, 'div');
+        this.checkArguments(a, b, 'exp');
         return new Result((a.val as decimal.Decimal).toPower(b.val));
+    }
+    and(a: Result, b: Result): Result {
+        this.checkArguments(a, b, 'and');
+        // Check if the number is integer...
+        let left = a.val as decimal.Decimal;
+        let right = b.val as decimal.Decimal;
+
+        if (!left.floor().equals(left) || !right.floor().equals(right)) {
+            throw new Error('Logic operators are only supports for whole numbers');
+        }
+
+        let ls = left.toBinary();
+        let rs = right.toBinary();
+        ls = ls.substring(2, ls.length); // Remove prefix 0b
+        rs = rs.substring(2, rs.length); // Remove prefix 0b
+        let res = "";
+        while (ls !== "" && rs !== "") {
+            if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '1') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '0') {
+                res = '0' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '1') {
+                res = '0' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '0') {
+                res = '0' + res;
+            }
+            ls = ls.substring(0, ls.length - 1);
+            rs = rs.substring(0, rs.length - 1);
+        }
+        res = '0b' + res;
+
+        return new Result(new decimal.Decimal(res));
+    }
+    or(a: Result, b: Result): Result {
+        this.checkArguments(a, b, 'or');
+        // Check if the number is integer...
+        let left = a.val as decimal.Decimal;
+        let right = b.val as decimal.Decimal;
+
+        if (!left.floor().equals(left) || !right.floor().equals(right)) {
+            throw new Error('Logic operators are only supports for whole numbers');
+        }
+
+        let ls = left.toBinary();
+        let rs = right.toBinary();
+        ls = ls.substring(2, ls.length); // Remove prefix 0b
+        rs = rs.substring(2, rs.length); // Remove prefix 0b
+        let res = "";
+        while (ls !== "" && rs !== "") {
+            if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '1') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '0') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '1') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '0') {
+                res = '0' + res;
+            }
+            ls = ls.substring(0, ls.length - 1);
+            rs = rs.substring(0, rs.length - 1);
+        }
+        if (ls === "") {
+            res = rs + res;
+        } else {
+            res = ls + res;
+        }
+        res = '0b' + res;
+
+        return new Result(new decimal.Decimal(res));
+    }
+    xor(a: Result, b: Result): Result {
+        this.checkArguments(a, b, 'xor');
+        // Check if the number is integer...
+        let left = a.val as decimal.Decimal;
+        let right = b.val as decimal.Decimal;
+
+        if (!left.floor().equals(left) || !right.floor().equals(right)) {
+            throw new Error('Logic operators are only supports for whole numbers');
+        }
+
+        let ls = left.toBinary();
+        let rs = right.toBinary();
+        ls = ls.substring(2, ls.length); // Remove prefix 0b
+        rs = rs.substring(2, rs.length); // Remove prefix 0b
+        let res = "";
+        while (ls !== "" && rs !== "") {
+            if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '1') {
+                res = '0' + res;
+            } else if (ls[ls.length - 1] === '1' && rs[rs.length - 1] === '0') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '1') {
+                res = '1' + res;
+            } else if (ls[ls.length - 1] === '0' && rs[rs.length - 1] === '0') {
+                res = '0' + res;
+            }
+            ls = ls.substring(0, ls.length - 1);
+            rs = rs.substring(0, rs.length - 1);
+        }
+        if (ls === "") {
+            res = rs + res;
+        } else {
+            res = ls + res;
+        }
+        res = '0b' + res;
+
+        return new Result(new decimal.Decimal(res));
     }
 }

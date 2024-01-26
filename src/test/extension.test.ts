@@ -97,4 +97,37 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('reset'), '');
         assert.strictEqual(evaluateExpression('10'), '10');
     });
+
+    test('Logical operations', () => {
+        assert.strictEqual(evaluateExpression('1&1'), '1');
+        assert.strictEqual(evaluateExpression('1&0'), '0');
+        assert.strictEqual(evaluateExpression('0&1'), '0');
+        assert.strictEqual(evaluateExpression('0&0'), '0');
+
+        assert.strictEqual(evaluateExpression('2&2'), '2');
+        assert.strictEqual(evaluateExpression('pre 1000 1320745023740273048132817 & 1320745023740273048132817'),
+            '1320745023740273048132817');
+        assert.strictEqual(evaluateExpression('3&1'), '1');
+
+        assert.strictEqual(evaluateExpression('1|1'), '1');
+        assert.strictEqual(evaluateExpression('1|0'), '1');
+        assert.strictEqual(evaluateExpression('0|1'), '1');
+        assert.strictEqual(evaluateExpression('0|0'), '0');
+
+        assert.strictEqual(evaluateExpression('2|2'), '2');
+        assert.strictEqual(evaluateExpression('pre 1000 1320745023740273048132817 | 1320745023740273048132817'),
+            '1320745023740273048132817');
+        assert.strictEqual(evaluateExpression('3|1'), '3');
+
+        assert.strictEqual(evaluateExpression('1^1'), '0');
+        assert.strictEqual(evaluateExpression('1^0'), '1');
+        assert.strictEqual(evaluateExpression('0^1'), '1');
+        assert.strictEqual(evaluateExpression('0^0'), '0');
+
+        assert.strictEqual(evaluateExpression('3^1'), '2');
+
+        assert.strictEqual(evaluateExpression('3&2*2'), '0');
+        assert.strictEqual(evaluateExpression('2*2&3'), '0');
+        assert.strictEqual(evaluateExpression('1+2*3&4|5'), '5');
+    });
 });
