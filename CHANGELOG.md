@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 0.0.9
+- Use → instead of `=` to delimit results.
+- Support logical AND, OR, and XOR operations (with `&`, `|`, and `^`).
+
 ## Version 0.0.8
 - Fix handling of trailing `=` sign.
 - Settings made with `!` operator local to the document and not global.
