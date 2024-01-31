@@ -29,6 +29,7 @@ enum TokenType {
     And = 'AND',
     Or = 'OR',
     Xor = 'XOR',
+    Not = 'NOT',
     Bang = 'BANG',
     LParen = 'LPAREN',
     RParen = 'RPAREN',
@@ -198,6 +199,10 @@ class Lexer {
                 this.advance();
                 return new Token(TokenType.Xor, '^', positionBefore);
             }
+            if (this.currentChar === '~') {
+                this.advance();
+                return new Token(TokenType.Not, '~', positionBefore);
+            }
             if (this.currentChar === '(') {
                 this.advance();
                 return new Token(TokenType.LParen, '(', positionBefore);
@@ -236,6 +241,7 @@ class FuzzySettings {
     base: number | undefined;
     commaSeparated: boolean | undefined;
     precision: number | undefined;
+    arithmetic: string | undefined;
 
     constructor() {
         this.base = undefined;
@@ -252,15 +258,17 @@ class Settings {
     base: number;
     commaSeparated: boolean;
     precision: number;
+    arithmetic: string;
 
     constructor() {
         this.base = 10;
         this.commaSeparated = false;
         this.precision = 20;
+        this.arithmetic = 'arb';
     }
 
     toString() {
-        return `[base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}]`;
+        return `arithmetic=${this.arithmetic} base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}`;
     }
 }
 
@@ -279,24 +287,15 @@ class Parser {
     private tokens: Token[];
     private position: number;
     private arithmetic: math.Arithmetic;
-    private unitConversions: Map<string, string>;
 
     constructor(tokens: Token[], arithmetic: math.Arithmetic) {
         this.tokens = tokens;
         this.position = 0;
         this.arithmetic = arithmetic;
-        this.unitConversions = new Map<string, string>([
-            ['pi', '1125899906842624'],
-            ['ti', '1099511627776'],
-            ['gi', '1073741824'],
-            ['mi', '1048576'],
-            ['ki', '1024'],
-            ['q', '1000000000000'],
-            ['g', '1000000000'],
-            ['b', '1000000000'],
-            ['m', '1000000'],
-            ['k', '1000'],
-        ]);
+    }
+
+    setArithmetic(ar: math.Arithmetic) {
+        this.arithmetic = ar;
     }
 
     private advance(): void {
@@ -316,6 +315,9 @@ class Parser {
         } else if (token.type === TokenType.Plus) {
             this.advance();
             return this.factor();
+        } else if (token.type === TokenType.Not) {
+            this.advance();
+            return this.arithmetic.not(this.factor());
         } else if (token.type === TokenType.Number) {
             this.advance();
             return this.arithmetic.parseNumber(token.value, 10);
@@ -432,7 +434,29 @@ class Parser {
         }
     }
 
-    public preprocess() : [FuzzySettings, FuzzySettings] {
+    public preprocess(): [FuzzySettings, FuzzySettings] {
+        let unitConversions = new Map<string, string>([
+            ['pi', '1125899906842624'],
+            ['ti', '1099511627776'],
+            ['gi', '1073741824'],
+            ['mi', '1048576'],
+            ['ki', '1024'],
+            ['q', '1000000000000'],
+            ['g', '1000000000'],
+            ['b', '1000000000'],
+            ['m', '1000000'],
+            ['k', '1000'],
+        ]);
+
+        let arithmetics = [
+            'arb',
+            'u128',
+            'u64',
+            'u32',
+            'u16',
+            'u8',
+        ];
+
         let locals = new FuzzySettings();
         let globals = new FuzzySettings();
 
@@ -485,14 +509,14 @@ class Parser {
                     if (this.handleBang()) {
                         globals.commaSeparated = true;
                     }
-                } else if (this.unitConversions.has(token.value)) {
+                } else if (unitConversions.has(token.value)) {
                     const numericTokens = [
                         TokenType.Number,
                         TokenType.HexNumber,
                         TokenType.BinNumber,
                         TokenType.OctNumber
                     ];
-                    const multiplier = this.unitConversions.get(token.value)!;
+                    const multiplier = unitConversions.get(token.value)!;
                     if (this.position > 0 && numericTokens.includes(this.tokens[this.position - 1].type)) {
                         const numberPos = this.position - 1;
                         // 1k -> (1k
@@ -514,6 +538,12 @@ class Parser {
                             new Token(TokenType.Number, multiplier, token.position));
                     }
                     this.position += 1;
+                } else if (arithmetics.includes(token.value)) {
+                    locals.arithmetic = token.value;
+                    if (this.handleBang()) {
+                        globals.arithmetic = token.value;
+                    }
+                    this.tokens.splice(this.position, 1);
                 } else {
                     this.position += 1;
                 }
@@ -558,11 +588,13 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docSettings
     docSettings.base = globals.base ? globals.base : docSettings.base;
     docSettings.precision = globals.precision ? globals.precision : docSettings.precision;
     docSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : docSettings.commaSeparated;
+    docSettings.arithmetic = globals.arithmetic ? globals.arithmetic : docSettings.arithmetic;
 
     if (
         globals.base ||
         globals.commaSeparated ||
-        globals.precision
+        globals.precision ||
+        globals.arithmetic
     ) {
         info(`Set document-wide settings to ${docSettings}`);
     }
@@ -570,8 +602,25 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docSettings
     s.base = locals.base ? locals.base : docSettings.base;
     s.precision = locals.precision ? locals.precision : docSettings.precision;
     s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : docSettings.commaSeparated;
+    s.arithmetic = locals.arithmetic ? locals.arithmetic : docSettings.arithmetic;
 
     return s;
+}
+
+function getArithmetic(settings: Settings): math.Arithmetic {
+    if (settings.arithmetic === 'u128') {
+        return new math.UnsignedArithmetic(128);
+    } else if (settings.arithmetic === 'u64') {
+        return new math.UnsignedArithmetic(64);
+    } else if (settings.arithmetic === 'u32') {
+        return new math.UnsignedArithmetic(32);
+    } else if (settings.arithmetic === 'u16') {
+        return new math.UnsignedArithmetic(16);
+    } else if (settings.arithmetic === 'u8') {
+        return new math.UnsignedArithmetic(8);
+    } else {
+        throw new Error(`Internal error: unsupported arithmetic ${settings.arithmetic}`);
+    }
 }
 
 export function evaluateExpression(expr: string, docSettings?: Settings): string {
@@ -581,12 +630,19 @@ export function evaluateExpression(expr: string, docSettings?: Settings): string
     const tokens = lexer.tokenize();
     let resultString = '';
 
-    const arithmetic = new math.DecimalArithmetic();
-    const parser = new Parser(tokens, arithmetic);
+    let arithmetic: math.Arithmetic;
+    arithmetic = new math.DecimalArithmetic();
 
+    const parser = new Parser(tokens, arithmetic);
     const [locals, globals] = parser.preprocess();
+
     let settings = sortSettings(locals, globals, docSettings);
-    arithmetic.setPrecision(settings.precision);
+    if (settings.arithmetic !== 'arb') {
+        arithmetic = getArithmetic(settings);
+        parser.setArithmetic(arithmetic);
+    } else {
+        arithmetic.setPrecision(settings.precision);
+    }
 
     if (tokens.length !== 1) {
         let result = parser.parse();

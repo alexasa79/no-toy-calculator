@@ -130,4 +130,30 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('2*2&3'), '0');
         assert.strictEqual(evaluateExpression('1+2*3&4|5'), '5');
     });
+
+    test('unsigned arithmetic', () => {
+        assert.throws(() => { evaluateExpression('u8 0.2'); });
+
+        // Test twos complement
+        for (let i = 0; i < 128; i++) {
+            assert.strictEqual(evaluateExpression(`u8 ${-128 + i}`), `${128 + i}`);
+        }
+
+        assert.strictEqual(evaluateExpression('u8 127+1'), '128');
+        assert.strictEqual(evaluateExpression('u8 255+1'), '0');
+        assert.strictEqual(evaluateExpression('u8 2**9'), '0');
+        assert.strictEqual(evaluateExpression('u8 2**10'), '0');
+        assert.strictEqual(evaluateExpression('u8 3/2'), '1');
+
+        assert.strictEqual(evaluateExpression('u128 340282366920938463463374607431768211455+1'), '0');
+    });
+
+    test('logical not', () => {
+        assert.throws(() => { evaluateExpression('~1'); });
+        assert.strictEqual(evaluateExpression('u8 ~0'), '255');
+        assert.strictEqual(evaluateExpression('u16 ~0'), '65535');
+        assert.strictEqual(evaluateExpression('u32 ~0'), '4294967295');
+        assert.strictEqual(evaluateExpression('u64 ~0'), '18446744073709551615');
+        assert.strictEqual(evaluateExpression('u128 ~0'), '340282366920938463463374607431768211455');
+    });
 });
