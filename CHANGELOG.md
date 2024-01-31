@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 0.0.10
+- First attempt at implementing unsigned arithmetic. Likely still buggy.
+- Implement logical NOT (`~`) for unsigned arithmetic.
+
 ## Version 0.0.9
 - Use → instead of `=` to delimit results.
 - Support logical AND, OR, and XOR operations (with `&`, `|`, and `^`).
