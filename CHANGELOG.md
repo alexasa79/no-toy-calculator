@@ -1,5 +1,8 @@
 # Change Log
 
+## Version 0.0.11
+- Change name to No-Toy Calculator.
+
 ## Version 0.0.10
 - First attempt at implementing unsigned arithmetic. Likely still buggy.
 - Implement logical NOT (`~`) for unsigned arithmetic.

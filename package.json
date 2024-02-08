@@ -1,9 +1,9 @@
 {
-  "name": "toy-calculator",
-  "displayName": "Toy Calculator",
+  "name": "no-toy-calculator",
+  "displayName": "No-Toy Calculator",
   "description": "",
-  "repository": "git@github.com:alexasa79/toy-calculator.git",
-  "version": "0.0.10",
+  "repository": "git@github.com:alexasa79/no-toy-calculator.git",
+  "version": "0.0.11",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -15,8 +15,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "toy-calculator.eval",
-        "title": "Toy Calculator: Evaluate"
+        "command": "no-toy-calculator.eval",
+        "title": "No-Toy Calculator: Evaluate"
       }
     ]
   },

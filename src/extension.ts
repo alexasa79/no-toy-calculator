@@ -742,7 +742,7 @@ function evaluate() {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    let disposable = vscode.commands.registerCommand('toy-calculator.eval', evaluate);
+    let disposable = vscode.commands.registerCommand('no-toy-calculator.eval', evaluate);
     context.subscriptions.push(disposable);
 }
 
