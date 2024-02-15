@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 0.0.12
+- Fix handling of selections. Expression to evaluate is taken from the
+  selection and result replaces the selection.
+
 ## Version 0.0.11
 - Change name to No-Toy Calculator.
 
