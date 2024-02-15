@@ -695,10 +695,22 @@ function evaluate() {
     for (let i = 0; i < editor.selections.length; i++) {
         const doc = editor.document;
         const selection = editor.selections[i];
-        const pos = selection.active;
-        let currentLine = doc.lineAt(pos).text.substring(0, pos.character);
+        const cursor = selection.active;
 
-        debug(`Current position: ${pos.line}, ${pos.character}`);
+        debug(`Cursor: ${cursor.line}, ${cursor.character}`);
+        debug(`Selection: ${selection.start.line}:${selection.start.character}` +
+            `${selection.end.line}:${selection.end.character}`);
+
+        let replace = false;
+        let currentLine: string;
+        if (selection.start.compareTo(selection.end) !== 0) {
+            currentLine = doc.lineAt(cursor).text.substring(
+                selection.start.character, selection.end.character);
+            replace = true;
+        } else {
+            currentLine = doc.lineAt(cursor).text.substring(0, cursor.character);
+        }
+
         debug(`Evaluating line: ${currentLine}`);
 
         if (currentLine.length === 0 || currentLine.length > 1024) {
@@ -708,9 +720,9 @@ function evaluate() {
 
         // Remove trailing `＝` from the end of the input string...
         currentLine = currentLine.trim();
-        let trailingEqual = false;
+        let trailingArrow = false;
         if (currentLine.endsWith('→')) {
-            trailingEqual = true;
+            trailingArrow = true;
             currentLine = currentLine.substring(0, currentLine.length - 1);
         }
 
@@ -725,7 +737,7 @@ function evaluate() {
             continue;
         }
 
-        if (!trailingEqual) {
+        if (!trailingArrow && !replace) {
             result = " → " + result;
         }
 
@@ -736,7 +748,7 @@ function evaluate() {
         for (let i = 0; i < editor.selections.length; i++) {
             const selection = editor.selections[i];
             const pos = selection.active;
-            edit.replace(pos, results[i]);
+            edit.replace(selection, results[i]);
         }
     });
 }
