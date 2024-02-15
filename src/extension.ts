@@ -34,6 +34,7 @@ enum TokenType {
     LParen = 'LPAREN',
     RParen = 'RPAREN',
     Variable = 'VARIABLE',
+    Equal = 'EQUAL',
     Identifier = 'IDENTIFIER',
     EOF = 'EOF'
 }
@@ -211,10 +212,14 @@ class Lexer {
                 this.advance();
                 return new Token(TokenType.RParen, ')', positionBefore);
             }
-            if (this.currentChar === '$' && this.text[this.position + 1] === '$') {
+            if (this.currentChar === '$') {
                 this.advance();
+                const name = this.consumeWord();
+                return new Token(TokenType.Variable, `$${name}`, positionBefore);
+            }
+            if (this.currentChar === '=') {
                 this.advance();
-                return new Token(TokenType.Variable, '$$', positionBefore);
+                return new Token(TokenType.Equal, '=', positionBefore);
             }
             if (/[a-zA-Z]/.test(this.currentChar)) {
                 const word = this.consumeWord();
@@ -272,13 +277,26 @@ class Settings {
     }
 }
 
-let lastResult = new math.Result(0);
-let globalSettings = new Settings();
+export class DocumentState {
+    settings: Settings;
+    variables: Map<string, math.Result>;
+
+    constructor(settings: Settings) {
+        this.settings = new Settings();
+        this.settings.arithmetic = settings.arithmetic;
+        this.settings.base = settings.base;
+        this.settings.commaSeparated = settings.commaSeparated;
+        this.settings.precision = settings.precision;
+        this.variables = new Map<string, math.Result>;
+    }
+}
+
+export let defaultSettings = new Settings();
 
 let settingsMap = new WeakMap;
-function getDocumentSettings(doc: vscode.TextDocument): Settings {
+function getDocumentState(doc: vscode.TextDocument): DocumentState {
     if (!settingsMap.has(doc)) {
-        settingsMap.set(doc, new Settings());
+        settingsMap.set(doc, new DocumentState(defaultSettings));
     }
     return settingsMap.get(doc);
 }
@@ -287,11 +305,13 @@ class Parser {
     private tokens: Token[];
     private position: number;
     private arithmetic: math.Arithmetic;
+    private state: DocumentState;
 
-    constructor(tokens: Token[], arithmetic: math.Arithmetic) {
+    constructor(tokens: Token[], arithmetic: math.Arithmetic, docState: DocumentState) {
         this.tokens = tokens;
         this.position = 0;
         this.arithmetic = arithmetic;
+        this.state = docState;
     }
 
     setArithmetic(ar: math.Arithmetic) {
@@ -332,7 +352,10 @@ class Parser {
             return this.arithmetic.parseNumber(token.value, 2);
         } else if (token.type === TokenType.Variable) {
             this.advance();
-            return lastResult;
+            if (this.state.variables.get(token.value) === undefined) {
+                throw new Error(`Evaluating undefined variable ${token.value}`);
+            }
+            return this.state.variables.get(token.value)!;
         } else if (token.type === TokenType.LParen) {
             this.advance();
             const result = this.expr();
@@ -434,6 +457,21 @@ class Parser {
         }
     }
 
+    private stmt(): math.Result | undefined {
+        if (this.tokens.length - this.position > 2) {
+            let token = this.tokens[this.position];
+            let next = this.tokens[this.position + 1];
+            if (token.type === TokenType.Variable && next.type === TokenType.Equal) {
+                this.advance();
+                this.advance();
+                let result = this.expr();
+                this.state.variables.set(token.value, result);
+                return result;
+            }
+        }
+        return undefined;
+    }
+
     public preprocess(): [FuzzySettings, FuzzySettings] {
         let unitConversions = new Map<string, string>([
             ['pi', '1125899906842624'],
@@ -514,10 +552,13 @@ class Parser {
                         TokenType.Number,
                         TokenType.HexNumber,
                         TokenType.BinNumber,
-                        TokenType.OctNumber
+                        TokenType.OctNumber,
+                        TokenType.Variable,
                     ];
                     const multiplier = unitConversions.get(token.value)!;
-                    if (this.position > 0 && numericTokens.includes(this.tokens[this.position - 1].type)) {
+                    if (this.position > 0 && numericTokens.includes(
+                        this.tokens[this.position - 1].type))
+                    {
                         const numberPos = this.position - 1;
                         // 1k -> (1k
                         this.tokens.splice(numberPos, 0,
@@ -528,7 +569,9 @@ class Parser {
                             new Token(TokenType.Number, multiplier, token.position),
                             new Token(TokenType.RParen, ')', token.position),
                         );
-                    } else if (this.position > 0 && this.tokens[this.position - 1].type === TokenType.RParen) {
+                    } else if (this.position > 0 &&
+                        this.tokens[this.position - 1].type === TokenType.RParen)
+                    {
                         this.tokens.splice(this.position, 1,
                             new Token(TokenType.Multiply, '*', token.position),
                             new Token(TokenType.Number, multiplier, token.position)
@@ -560,11 +603,15 @@ class Parser {
         return [locals, globals];
     }
 
-    public parse(): math.Result {
-        let result = this.expr();
+    public parse(): math.Result | undefined {
+        let result = this.stmt();
+        if (this.currentToken().type !== TokenType.EOF) {
+            result = this.expr();
+        }
         let token = this.currentToken();
+        debug(`Current token ${token}`);
         if (token.type !== TokenType.EOF) {
-            throw new Error(`Unexpected token ${this.tokens[this.position]}`);
+            throw new Error(`Unexpected token ${token}`);
         }
         return result;
     }
@@ -578,12 +625,10 @@ function addCommas(x: string, every: number) {
     return parts.join(".");
 }
 
-function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docSettings?: Settings): Settings {
+function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: DocumentState): Settings {
     let s = new Settings();
 
-    if (!docSettings) {
-        docSettings = globalSettings;
-    }
+    let docSettings = docState.settings;
 
     docSettings.base = globals.base ? globals.base : docSettings.base;
     docSettings.precision = globals.precision ? globals.precision : docSettings.precision;
@@ -623,20 +668,24 @@ function getArithmetic(settings: Settings): math.Arithmetic {
     }
 }
 
-export function evaluateExpression(expr: string, docSettings?: Settings): string {
-    debug(`evaluating: ${expr}`);
+export function evaluateExpression(expr: string, docState: DocumentState): string {
+    debug(`Evaluating line: ${expr}`);
 
     const lexer = new Lexer(expr);
     const tokens = lexer.tokenize();
+
+    const tokenMap = tokens.map(obj => obj.toString()).join(', ');
+    debug(`Tokens before proprocessor [${tokens.length}]: ${tokenMap}`);
+
     let resultString = '';
 
     let arithmetic: math.Arithmetic;
     arithmetic = new math.DecimalArithmetic();
 
-    const parser = new Parser(tokens, arithmetic);
+    const parser = new Parser(tokens, arithmetic, docState);
     const [locals, globals] = parser.preprocess();
 
-    let settings = sortSettings(locals, globals, docSettings);
+    let settings = sortSettings(locals, globals, docState);
     if (settings.arithmetic !== 'arb') {
         arithmetic = getArithmetic(settings);
         parser.setArithmetic(arithmetic);
@@ -647,11 +696,15 @@ export function evaluateExpression(expr: string, docSettings?: Settings): string
     if (tokens.length !== 1) {
         let result = parser.parse();
 
-        lastResult = result;
+        if (result !== undefined) {
+            docState.variables.set('$?', result);
 
-        resultString = arithmetic.toString(result, settings.base!);
-        if (settings.base === 10 && settings.commaSeparated!) {
-            resultString = addCommas(resultString, 3);
+            resultString = arithmetic.toString(result, settings.base!);
+            if (settings.base === 10 && settings.commaSeparated!) {
+                resultString = addCommas(resultString, 3);
+            }
+        } else {
+            resultString = "";
         }
     }
 
@@ -660,18 +713,18 @@ export function evaluateExpression(expr: string, docSettings?: Settings): string
     return resultString;
 }
 
-export function evaluateExpressionSafe(expr: string, docSettings: Settings): string {
+export function evaluateExpressionSafe(expr: string, docState: DocumentState): [boolean, string] {
     try {
-        return evaluateExpression(expr, docSettings);
+        return [true, evaluateExpression(expr, docState)];
     } catch (e) {
         err(`Error parsing expression: ${e}`);
     }
-    return "";
+    return [false, ""];
 }
 
 function trimLine(s: string): string {
     let start = 0;
-    let re = new RegExp('(?:#+|//+|/[*]+|=|→)', 'g');
+    let re = new RegExp('(?:#+|//+|/[*]+|→)', 'g');
     let m = re.exec(s);
     while (m !== null) {
         start = m.index + m[0].length;
@@ -680,12 +733,12 @@ function trimLine(s: string): string {
     return s.substring(start).trim();
 }
 
-function evaluateString(currentLine: string, editor: vscode.TextEditor): string {
+function evaluateString(currentLine: string, editor: vscode.TextEditor): [boolean, string] {
     debug(`Evaluating line: ${currentLine}`);
 
     if (currentLine.length === 0 || currentLine.length > 1024) {
         err(`Expression's length ${currentLine.length} does not make sense`);
-        return "";
+        return [false, ""];
     }
 
     // Remove trailing `＝` from the end of the input string...
@@ -697,10 +750,12 @@ function evaluateString(currentLine: string, editor: vscode.TextEditor): string 
     currentLine = trimLine(currentLine);
     debug(`After trimming: ${currentLine}`);
 
-    return evaluateExpressionSafe(currentLine, getDocumentSettings(editor.document));
+    return evaluateExpressionSafe(currentLine, getDocumentState(editor.document));
 }
 
 function evaluate() {
+    debug('-------------------------------------> Beginning evaluation');
+
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         return;
@@ -721,25 +776,25 @@ function evaluate() {
         debug(`Selection: ${selection.start.line}:${selection.start.character}` +
             `${selection.end.line}:${selection.end.character}`);
 
+        let valid: boolean;
         let result: string;
-
-        let replace = false;
         let currentLine: string;
         if (selection.start.compareTo(selection.end) !== 0) {
             currentLine = doc.lineAt(cursor).text.substring(
                 selection.start.character, selection.end.character);
-            result = evaluateString(currentLine, editor);
-            replace = true;
+            [valid, result] = evaluateString(currentLine, editor);
         } else {
             currentLine = doc.lineAt(cursor).text.substring(0, cursor.character);
             result = "";
             for (let i = 0; i < currentLine.length - 1; i++) {
-                result = evaluateString(currentLine.substring(i, currentLine.length), editor);
-                if (result !== "") {
+                [valid, result] = evaluateString(currentLine.substring(i, currentLine.length), editor);
+                if (valid) {
                     break;
                 }
             }
-            result = " → " + result;
+            if (result !== "") {
+                result = " → " + result;
+            }
         }
 
         results.push(result);
@@ -748,7 +803,6 @@ function evaluate() {
     editor.edit(edit => {
         for (let i = 0; i < editor.selections.length; i++) {
             const selection = editor.selections[i];
-            const pos = selection.active;
             edit.replace(selection, results[i]);
         }
     });
