@@ -273,7 +273,11 @@ export class UnsignedArithmetic implements Arithmetic {
 
     parseNumber(s: string, base: number): Result {
         let result = this.da.parseNumber(s, base);
-        return new Result(this.normalize(result.val as decimal.Decimal));
+        let d = result.val as decimal.Decimal;
+        if (!d.floor().eq(d)) {
+            throw new Error('Fractions are not supported with unsigned arithmetic');
+        }
+        return new Result(this.normalize(d));
     }
 
     toString(r: Result, base: number): string {
