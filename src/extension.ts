@@ -680,6 +680,26 @@ function trimLine(s: string): string {
     return s.substring(start).trim();
 }
 
+function evaluateString(currentLine: string, editor: vscode.TextEditor): string {
+    debug(`Evaluating line: ${currentLine}`);
+
+    if (currentLine.length === 0 || currentLine.length > 1024) {
+        err(`Expression's length ${currentLine.length} does not make sense`);
+        return "";
+    }
+
+    // Remove trailing `＝` from the end of the input string...
+    currentLine = currentLine.trim();
+    if (currentLine.endsWith('→')) {
+        currentLine = currentLine.substring(0, currentLine.length - 1);
+    }
+
+    currentLine = trimLine(currentLine);
+    debug(`After trimming: ${currentLine}`);
+
+    return evaluateExpressionSafe(currentLine, getDocumentSettings(editor.document));
+}
+
 function evaluate() {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -701,43 +721,24 @@ function evaluate() {
         debug(`Selection: ${selection.start.line}:${selection.start.character}` +
             `${selection.end.line}:${selection.end.character}`);
 
+        let result: string;
+
         let replace = false;
         let currentLine: string;
         if (selection.start.compareTo(selection.end) !== 0) {
             currentLine = doc.lineAt(cursor).text.substring(
                 selection.start.character, selection.end.character);
+            result = evaluateString(currentLine, editor);
             replace = true;
         } else {
             currentLine = doc.lineAt(cursor).text.substring(0, cursor.character);
-        }
-
-        debug(`Evaluating line: ${currentLine}`);
-
-        if (currentLine.length === 0 || currentLine.length > 1024) {
-            err(`Expression's length ${currentLine.length} does not make sense`);
-            return;
-        }
-
-        // Remove trailing `＝` from the end of the input string...
-        currentLine = currentLine.trim();
-        let trailingArrow = false;
-        if (currentLine.endsWith('→')) {
-            trailingArrow = true;
-            currentLine = currentLine.substring(0, currentLine.length - 1);
-        }
-
-        currentLine = trimLine(currentLine);
-        debug(`After trimming: ${currentLine}`);
-
-        let result = evaluateExpressionSafe(currentLine, getDocumentSettings(editor.document));
-
-        if (result === "") {
-            debug("evaluateExpressionSafe returned empty result");
-            results.push("");
-            continue;
-        }
-
-        if (!trailingArrow && !replace) {
+            result = "";
+            for (let i = 0; i < currentLine.length - 1; i++) {
+                result = evaluateString(currentLine.substring(i, currentLine.length), editor);
+                if (result !== "") {
+                    break;
+                }
+            }
             result = " → " + result;
         }
 
