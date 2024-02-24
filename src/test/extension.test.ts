@@ -44,7 +44,7 @@ suite('Extension Test Suite', () => {
         let docSettings = new DocumentState(defaultSettings);
 
         assert.strictEqual(evaluateExpression('hex 10', docSettings), '0xa');
-        assert.strictEqual(evaluateExpression('dec $$', docSettings), '10');
+        assert.strictEqual(evaluateExpression('dec $?', docSettings), '10');
     });
 
     test('Exponentiation', () => {
@@ -183,5 +183,17 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('u64 ~0', docSettings), '18446744073709551615');
         assert.strictEqual(evaluateExpression('u128 ~0', docSettings),
             '340282366920938463463374607431768211455');
+    });
+
+    test('variables', () => {
+        let docSettings = new DocumentState(defaultSettings);
+
+        assert.throws(() => { evaluateExpression('$undefined', docSettings); });
+        assert.strictEqual(evaluateExpression('$a=10', docSettings), '');
+        assert.strictEqual(evaluateExpression('$a', docSettings), '10');
+        assert.strictEqual(evaluateExpression('$a*10', docSettings), '100');
+
+        docSettings = new DocumentState(defaultSettings);
+        assert.throws(() => { evaluateExpression('$a', docSettings); });
     });
 });

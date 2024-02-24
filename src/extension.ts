@@ -443,6 +443,19 @@ class Parser {
         return result;
     }
 
+    private stmt() {
+        if (this.tokens.length - this.position > 2) {
+            let token = this.tokens[this.position];
+            let next = this.tokens[this.position + 1];
+            if (token.type === TokenType.Variable && next.type === TokenType.Equal) {
+                this.advance();
+                this.advance();
+                let result = this.expr();
+                this.state.variables.set(token.value, result);
+            }
+        }
+    }
+
     private handleBang(): boolean {
         if (this.position >= this.tokens.length) {
             return false;
@@ -455,21 +468,6 @@ class Parser {
         } else {
             return false;
         }
-    }
-
-    private stmt(): math.Result | undefined {
-        if (this.tokens.length - this.position > 2) {
-            let token = this.tokens[this.position];
-            let next = this.tokens[this.position + 1];
-            if (token.type === TokenType.Variable && next.type === TokenType.Equal) {
-                this.advance();
-                this.advance();
-                let result = this.expr();
-                this.state.variables.set(token.value, result);
-                return result;
-            }
-        }
-        return undefined;
     }
 
     public preprocess(): [FuzzySettings, FuzzySettings] {
@@ -604,7 +602,9 @@ class Parser {
     }
 
     public parse(): math.Result | undefined {
-        let result = this.stmt();
+        this.stmt();
+
+        let result: math.Result | undefined = undefined;
         if (this.currentToken().type !== TokenType.EOF) {
             result = this.expr();
         }
@@ -713,18 +713,18 @@ export function evaluateExpression(expr: string, docState: DocumentState): strin
     return resultString;
 }
 
-export function evaluateExpressionSafe(expr: string, docState: DocumentState): [boolean, string] {
+export function evaluateExpressionSafe(expr: string, docState: DocumentState): [string, boolean] {
     try {
-        return [true, evaluateExpression(expr, docState)];
+        return [evaluateExpression(expr, docState), true];
     } catch (e) {
         err(`Error parsing expression: ${e}`);
     }
-    return [false, ""];
+    return ["", false];
 }
 
 function trimLine(s: string): string {
     let start = 0;
-    let re = new RegExp('(?:#+|//+|/[*]+|→)', 'g');
+    let re = new RegExp('(?:#+|//+|/[*]+|→|✓)', 'g');
     let m = re.exec(s);
     while (m !== null) {
         start = m.index + m[0].length;
@@ -733,12 +733,12 @@ function trimLine(s: string): string {
     return s.substring(start).trim();
 }
 
-function evaluateString(currentLine: string, editor: vscode.TextEditor): [boolean, string] {
+function evaluateString(currentLine: string, editor: vscode.TextEditor): [string, boolean] {
     debug(`Evaluating line: ${currentLine}`);
 
     if (currentLine.length === 0 || currentLine.length > 1024) {
         err(`Expression's length ${currentLine.length} does not make sense`);
-        return [false, ""];
+        return ["", false];
     }
 
     // Remove trailing `＝` from the end of the input string...
@@ -776,24 +776,28 @@ function evaluate() {
         debug(`Selection: ${selection.start.line}:${selection.start.character}` +
             `${selection.end.line}:${selection.end.character}`);
 
-        let valid: boolean;
+        let ok = false;
         let result: string;
         let currentLine: string;
         if (selection.start.compareTo(selection.end) !== 0) {
             currentLine = doc.lineAt(cursor).text.substring(
                 selection.start.character, selection.end.character);
-            [valid, result] = evaluateString(currentLine, editor);
+            [result, ok] = evaluateString(currentLine, editor);
         } else {
             currentLine = doc.lineAt(cursor).text.substring(0, cursor.character);
             result = "";
             for (let i = 0; i < currentLine.length - 1; i++) {
-                [valid, result] = evaluateString(currentLine.substring(i, currentLine.length), editor);
-                if (valid) {
+                [result, ok] = evaluateString(currentLine.substring(i, currentLine.length), editor);
+                if (ok) {
                     break;
                 }
             }
-            if (result !== "") {
-                result = " → " + result;
+            if (ok) {
+                if (result !== "") {
+                    result = " → " + result;
+                } else {
+                    result = "✓";
+                }
             }
         }
 
