@@ -211,6 +211,7 @@ class Lexer {
             }
             if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'o') {
                 this.advance();
+                this.advance();
                 return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
             }
             if ((ts = this.consumeTimestamp()) !== null) {
