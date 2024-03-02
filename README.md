@@ -27,6 +27,10 @@ to figure out where is the beginning of the expression.
 
 ![Fuzzy Evaluation GIF](doc/fuzzy-evaluation.gif)
 
+## Multiple cursors and selection support
+![Fuzzy Evaluation GIF](doc/multi-cursor.gif)
+
+
 ## Hexadecimal, octal and binary numbers support
 Numbers that start with `0x`, `0o` and `0b` are interpreted as
 hexadecimal, octal and binary. Use `hex`, `oct` and `bin` decorators to
@@ -37,6 +41,14 @@ appear anywhere in the expression.
 
 ## Arbitrary precision support
 Use `pre <FACTOR>` decorator to change precision. The default precision
-is 20, meaning that results will be limited to 20 digits in mantissa.
+is 20, meaning that results will be limited to 20 digits in the
+mantissa.
 
 ![Precision GIF](doc/precision.gif)
+
+## Variables support
+`$?` contains the result of the last evaluation. Assign variable with
+`$NAME = ...`. All variables are local to the buffer.
+
+![Variables GIF](doc/variables.gif)
+
