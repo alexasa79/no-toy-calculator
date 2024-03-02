@@ -3,7 +3,7 @@
   "displayName": "No-Toy Calculator",
   "description": "",
   "repository": "git@github.com:alexasa79/no-toy-calculator.git",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "engines": {
     "vscode": "^1.85.0"
   },

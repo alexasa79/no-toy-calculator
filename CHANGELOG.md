@@ -1,5 +1,10 @@
 # Change Log
 
+## Version 0.0.14
+- Support ISO8601 timestamps.
+- Support time units: `d`, `h` and `min`.
+- Support `ts` preprocessor to convert a number back to a timestamp.
+
 ## Version 0.0.13
 - Add statements support.
 - Add variables support.
