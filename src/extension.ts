@@ -835,7 +835,7 @@ export function evaluateExpressionSafe(expr: string, docState: DocumentState): [
     try {
         return [evaluateExpression(expr, docState), true];
     } catch (e) {
-        err(`Error parsing expression: ${e}`);
+        debug(`Error parsing expression: ${e}`);
     }
     return ["", false];
 }
@@ -855,7 +855,7 @@ function evaluateString(currentLine: string, editor: vscode.TextEditor): [string
     debug(`Evaluating line: ${currentLine}`);
 
     if (currentLine.length === 0 || currentLine.length > 1024) {
-        err(`Expression's length ${currentLine.length} does not make sense`);
+        err(`Expression's length ${currentLine.length} does not make sense.`);
         return ["", false];
     }
 
