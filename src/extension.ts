@@ -905,7 +905,7 @@ function evaluate() {
         } else {
             currentLine = doc.lineAt(cursor).text.substring(0, cursor.character);
             result = "";
-            for (let i = 0; i < currentLine.length - 1; i++) {
+            for (let i = 0; i < currentLine.length; i++) {
                 [result, ok] = evaluateString(currentLine.substring(i, currentLine.length), editor);
                 if (ok) {
                     break;
