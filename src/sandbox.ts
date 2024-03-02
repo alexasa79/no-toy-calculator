@@ -36,7 +36,7 @@ if (false) {
     console.log(r.exec(s2));
 }
 
-if (true) {
+if (false) {
     let n = new decimal.Decimal('1024');
     let nki = n.mul(new decimal.Decimal('1024'));
     let nmi = nki.mul(new decimal.Decimal('1024'));
@@ -51,3 +51,74 @@ if (true) {
     console.log(nti);
     console.log(npi);
 }
+
+function parseTimestamp(str: string): string | null {
+    console.log("----------------------------->", str);
+    const regex1 = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2})[:-](?<min>\d{2})[:-](?<sec>\d{2})(?<frac>\.(\d+))?(Z|(?<tz>[+-]\d{2}:\d{2}))?/;
+    const regex2 = /(?<hour>\d{2}):(?<min>\d{2})(?<sec>:\d{2})?/;
+    let m;
+    let s = "";
+    m = regex1.exec(str);
+    if (m === null) {
+        m = regex2.exec(str);
+        if (m === null) {
+        }
+    }
+    if (m !== null) {
+        console.log(m);
+
+        let year = "1970";
+        if (m.groups?.year) {
+            year = m.groups.year;
+        }
+
+        let month = "01";
+        if (m.groups?.month) {
+            month = m.groups.month;
+        }
+
+        let day = "01";
+        if (m.groups?.day) {
+            day = m.groups.day;
+        }
+
+        let sec = "00";
+        if (m.groups?.sec) {
+            sec = m.groups.sec;
+        }
+
+        let hour = m.groups!.hour;
+        let min = m.groups!.min;
+
+        let s = `${year}-${month}-${day}T${hour}:${min}:${sec}`;
+        let tz = "-00:00";
+        if (m.groups?.tz) {
+            tz = m.groups.tz;
+        }
+        s += tz;
+
+        let d = new Date(s);
+        let res = `${d.getTime() / 1000}`;
+
+        if (m.groups?.frac) {
+            res += m.groups.frac;
+        }
+
+        console.log(`${m[0]} -> ${s} -> ${d} -> ${res}`);
+        return res;
+    } else {
+        return null;
+    }
+}
+
+console.log("out:", parseTimestamp("2024-03-02T15:45:31Z something else..."), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31+01:00"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31+03:00"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31-07:00"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31.456Z"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31.456+05:30"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31.456823+06:30"), "\n");
+// console.log("out:", parseTimestamp("2024-03-02T15:45:31.456823938Z+07:30"), "\n");
+// console.log("out:", parseTimestamp("2024-02-28T17-36-15.521772983Z"), "\n");
+console.log("out:", parseTimestamp("00:00:01"), "\n");
+console.log("out:", parseTimestamp("00:01"), "\n");

@@ -20,6 +20,7 @@ enum TokenType {
     HexNumber = 'HNUMBER',
     OctNumber = 'ONUMBER',
     BinNumber = 'BNUMBER',
+    Timestamp = 'TIMESTAMP',
     Plus = 'PLUS',
     Minus = 'MINUS',
     Multiply = 'MULTIPLY',
@@ -130,6 +131,64 @@ class Lexer {
         return this.text.substring(startPos, this.position);
     }
 
+    private consumeTimestamp(): string | null {
+        const startPos = this.position;
+        let str = this.text.substring(startPos);
+
+        const regex1 = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2})[:-](?<min>\d{2})[:-](?<sec>\d{2})(?<frac>\.(\d+))?(Z|(?<tz>[+-]\d{2}:\d{2}))?/;
+        const regex2 = /^(?<hour>\d{2}):(?<min>\d{2})(?::(?<sec>\d{2}))?/;
+        let m = regex1.exec(str);
+        if (m === null) {
+            m = regex2.exec(str);
+        }
+
+        if (m !== null) {
+            let year = "1970";
+            if (m.groups?.year) {
+                year = m.groups.year;
+            }
+
+            let month = "01";
+            if (m.groups?.month) {
+                month = m.groups.month;
+            }
+
+            let day = "01";
+            if (m.groups?.day) {
+                day = m.groups.day;
+            }
+
+            let sec = "00";
+            if (m.groups?.sec) {
+                sec = m.groups.sec;
+            }
+
+            let hour = m.groups!.hour;
+            let min = m.groups!.min;
+
+            let s = `${year}-${month}-${day}T${hour}:${min}:${sec}`;
+            let tz = "-00:00";
+            if (m.groups?.tz) {
+                tz = m.groups.tz;
+            }
+            s += tz;
+
+            let d = new Date(s);
+            let res = `${d.getTime() / 1000}`;
+
+            if (m.groups?.frac) {
+                res += m.groups.frac;
+            }
+
+            this.position += m[0].length;
+            this.currentChar = this.text[this.position] || null;
+            debug(`${m[0]} -> ${s} -> ${res}`);
+            return res;
+        } else {
+            return null;
+        }
+    }
+
     private getNextToken(): Token {
         while (this.currentChar !== null) {
             if (/\s/.test(this.currentChar)) {
@@ -138,6 +197,7 @@ class Lexer {
             }
 
             const positionBefore = this.position;
+            let ts;
 
             if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'x') {
                 this.advance();
@@ -152,6 +212,9 @@ class Lexer {
             if (this.currentChar === '0' && this.text[this.position + 1]?.toLowerCase() === 'o') {
                 this.advance();
                 return new Token(TokenType.OctNumber, this.octNumber(), positionBefore);
+            }
+            if ((ts = this.consumeTimestamp()) !== null) {
+                return new Token(TokenType.Timestamp, ts, positionBefore);
             }
             if (this.currentChar === '.') {
                 return new Token(TokenType.Number, this.number(), positionBefore);
@@ -245,35 +308,61 @@ class Lexer {
 class FuzzySettings {
     base: number | undefined;
     commaSeparated: boolean | undefined;
+    timestamp: boolean | undefined;
     precision: number | undefined;
     arithmetic: string | undefined;
 
     constructor() {
         this.base = undefined;
         this.commaSeparated = undefined;
+        this.timestamp = undefined;
         this.precision = undefined;
     }
 
     toString() {
-        return `[base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}]`;
+        let t: string[] = [];
+        if (this.base !== undefined) {
+            t.push(`base=${this.base}`);
+        }
+        if (this.timestamp) {
+            t.push("ts");
+        }
+        if (this.commaSeparated) {
+            t.push("cs");
+        }
+        if (this.precision) {
+            t.push(`pre=${this.precision}`);
+        }
+        return t.join(" ");
     }
 }
 
 class Settings {
     base: number;
     commaSeparated: boolean;
+    timestamp: boolean;
     precision: number;
     arithmetic: string;
 
     constructor() {
         this.base = 10;
         this.commaSeparated = false;
+        this.timestamp = false;
         this.precision = 20;
         this.arithmetic = 'arb';
     }
 
     toString() {
-        return `arithmetic=${this.arithmetic} base=${this.base}, commas=${this.commaSeparated}, precision=${this.precision}`;
+        let t: string[] = [];
+        let res = `ar=${this.arithmetic}, base=${this.base}`;
+        if (this.commaSeparated) {
+            res += " cs";
+        }
+        if (this.timestamp) {
+            res += " ts";
+        }
+        res += ` pre=${this.precision}`;
+        return res;
     }
 }
 
@@ -286,6 +375,7 @@ export class DocumentState {
         this.settings.arithmetic = settings.arithmetic;
         this.settings.base = settings.base;
         this.settings.commaSeparated = settings.commaSeparated;
+        this.settings.timestamp = settings.timestamp;
         this.settings.precision = settings.precision;
         this.variables = new Map<string, math.Result>;
     }
@@ -350,6 +440,9 @@ class Parser {
         } else if (token.type === TokenType.BinNumber) {
             this.advance();
             return this.arithmetic.parseNumber(token.value, 2);
+        } else if (token.type === TokenType.Timestamp) {
+            this.advance();
+            return this.arithmetic.parseNumber(token.value, 10);
         } else if (token.type === TokenType.Variable) {
             this.advance();
             if (this.state.variables.get(token.value) === undefined) {
@@ -475,6 +568,7 @@ class Parser {
             ['pi', '1125899906842624'],
             ['ti', '1099511627776'],
             ['gi', '1073741824'],
+            ['min', '60'],
             ['mi', '1048576'],
             ['ki', '1024'],
             ['q', '1000000000000'],
@@ -482,6 +576,8 @@ class Parser {
             ['b', '1000000000'],
             ['m', '1000000'],
             ['k', '1000'],
+            ['d', '86400'],
+            ['h', '3600'],
         ]);
 
         let arithmetics = [
@@ -544,6 +640,12 @@ class Parser {
                     this.tokens.splice(this.position, 1);
                     if (this.handleBang()) {
                         globals.commaSeparated = true;
+                    }
+                } else if (token.value === 'ts') {
+                    locals.timestamp = true;
+                    this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.timestamp = true;
                     }
                 } else if (unitConversions.has(token.value)) {
                     const numericTokens = [
@@ -633,11 +735,13 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: D
     docSettings.base = globals.base ? globals.base : docSettings.base;
     docSettings.precision = globals.precision ? globals.precision : docSettings.precision;
     docSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : docSettings.commaSeparated;
+    docSettings.timestamp = globals.timestamp ? globals.timestamp : docSettings.timestamp;
     docSettings.arithmetic = globals.arithmetic ? globals.arithmetic : docSettings.arithmetic;
 
     if (
         globals.base ||
         globals.commaSeparated ||
+        globals.timestamp ||
         globals.precision ||
         globals.arithmetic
     ) {
@@ -646,6 +750,7 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: D
 
     s.base = locals.base ? locals.base : docSettings.base;
     s.precision = locals.precision ? locals.precision : docSettings.precision;
+    s.timestamp = locals.timestamp ? locals.timestamp : docSettings.timestamp;
     s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : docSettings.commaSeparated;
     s.arithmetic = locals.arithmetic ? locals.arithmetic : docSettings.arithmetic;
 
@@ -700,8 +805,21 @@ export function evaluateExpression(expr: string, docState: DocumentState): strin
             docState.variables.set('$?', result);
 
             resultString = arithmetic.toString(result, settings.base!);
-            if (settings.base === 10 && settings.commaSeparated!) {
-                resultString = addCommas(resultString, 3);
+            if (settings.base === 10) {
+                if (settings.timestamp) {
+                    let m = /(?<res>\d+)(?:\.(?<frac>\d+))?/.exec(resultString);
+                    if (m && m.groups?.res) {
+                        let res = parseInt(m.groups.res) * 1000;
+                        let d = new Date(res);
+                        resultString = d.toISOString();
+                        if (m.groups?.frac) {
+                            resultString = resultString.substring(0, resultString.length - 4);
+                            resultString += m.groups.frac + "Z";
+                        }
+                    }
+                } else if (settings.commaSeparated) {
+                    resultString = addCommas(resultString, 3);
+                }
             }
         } else {
             resultString = "";
@@ -818,4 +936,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }

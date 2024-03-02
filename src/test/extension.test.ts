@@ -196,4 +196,53 @@ suite('Extension Test Suite', () => {
         docSettings = new DocumentState(defaultSettings);
         assert.throws(() => { evaluateExpression('$a', docSettings); });
     });
+
+    test('timestamps', () => {
+        let docSettings = new DocumentState(defaultSettings);
+
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31', docSettings),
+            '1709394331');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31Z', docSettings),
+            '1709394331');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31.111Z', docSettings),
+            '1709394331.111');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31.111111Z', docSettings),
+            '1709394331.111111');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31.111111111Z', docSettings),
+            '1709394331.111111111');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15-45-31Z', docSettings),
+            '1709394331');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15-45-31.111', docSettings),
+            '1709394331.111');
+        assert.strictEqual(evaluateExpression(
+            '2024-03-02T15:45:31-05:00', docSettings),
+            '1709412331'); // 1709394331+3600*5 → 1709412331
+        assert.strictEqual(evaluateExpression(
+            '00:00:01', docSettings),
+            '1');
+        assert.strictEqual(evaluateExpression(
+            '00:01', docSettings),
+            '60');
+
+        assert.strictEqual(evaluateExpression(
+            '1min', docSettings),
+            '60');
+
+        assert.strictEqual(evaluateExpression(
+            '100 ts', docSettings),
+            '1970-01-01T00:01:40.000Z');
+        assert.strictEqual(evaluateExpression(
+            '100 + 3d', docSettings),
+            '259300');
+        assert.strictEqual(evaluateExpression(
+            '100 + 3d ts', docSettings),
+            '1970-01-04T00:01:40.000Z');
+    });
 });
