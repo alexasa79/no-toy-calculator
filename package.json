@@ -27,7 +27,7 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "build": "vsce package",
+    "build": "vsce package --baseImagesUrl https://github.com/alexasa79/no-toy-calculator/doc",
     "sandbox": "npm run compile && node out/sandbox.js"
   },
   "devDependencies": {
