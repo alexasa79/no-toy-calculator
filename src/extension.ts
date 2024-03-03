@@ -74,7 +74,8 @@ class Lexer {
             (
                 this.isDigit(this.currentChar) ||
                 this.currentChar === '.' ||
-                this.currentChar === ','
+                this.currentChar === ',' ||
+                this.currentChar === '_'
             )
         ) {
             if (this.currentChar === '.') {
@@ -83,7 +84,7 @@ class Lexer {
                 }
                 dot = true;
             }
-            if (this.currentChar !== ',') {
+            if (this.currentChar !== ',' && this.currentChar !== '_') {
                 result += this.currentChar;
             }
             this.advance();
@@ -309,6 +310,7 @@ class Lexer {
 class FuzzySettings {
     base: number | undefined;
     commaSeparated: boolean | undefined;
+    underscoreSeparated: boolean | undefined;
     timestamp: boolean | undefined;
     precision: number | undefined;
     arithmetic: string | undefined;
@@ -316,6 +318,7 @@ class FuzzySettings {
     constructor() {
         this.base = undefined;
         this.commaSeparated = undefined;
+        this.underscoreSeparated = undefined;
         this.timestamp = undefined;
         this.precision = undefined;
     }
@@ -331,6 +334,9 @@ class FuzzySettings {
         if (this.commaSeparated) {
             t.push("cs");
         }
+        if (this.underscoreSeparated) {
+            t.push("us");
+        }
         if (this.precision) {
             t.push(`pre=${this.precision}`);
         }
@@ -341,6 +347,7 @@ class FuzzySettings {
 class Settings {
     base: number;
     commaSeparated: boolean;
+    underscoreSeparated: boolean;
     timestamp: boolean;
     precision: number;
     arithmetic: string;
@@ -348,6 +355,7 @@ class Settings {
     constructor() {
         this.base = 10;
         this.commaSeparated = false;
+        this.underscoreSeparated = false;
         this.timestamp = false;
         this.precision = 20;
         this.arithmetic = 'arb';
@@ -358,6 +366,9 @@ class Settings {
         let res = `ar=${this.arithmetic}, base=${this.base}`;
         if (this.commaSeparated) {
             res += " cs";
+        }
+        if (this.underscoreSeparated) {
+            res += " us";
         }
         if (this.timestamp) {
             res += " ts";
@@ -376,6 +387,7 @@ export class DocumentState {
         this.settings.arithmetic = settings.arithmetic;
         this.settings.base = settings.base;
         this.settings.commaSeparated = settings.commaSeparated;
+        this.settings.underscoreSeparated = settings.underscoreSeparated;
         this.settings.timestamp = settings.timestamp;
         this.settings.precision = settings.precision;
         this.variables = new Map<string, math.Result>;
@@ -599,6 +611,8 @@ class Parser {
                 if (token.value === 'reset') {
                     globals.base = 10;
                     globals.commaSeparated = false;
+                    globals.underscoreSeparated = false;
+                    globals.timestamp = false;
                     globals.precision = 20;
                     this.tokens.splice(this.position, 1);
                 } else if (token.value === 'dec') {
@@ -641,6 +655,12 @@ class Parser {
                     this.tokens.splice(this.position, 1);
                     if (this.handleBang()) {
                         globals.commaSeparated = true;
+                    }
+                } else if (token.value === 'us') {
+                    locals.underscoreSeparated = true;
+                    this.tokens.splice(this.position, 1);
+                    if (this.handleBang()) {
+                        globals.underscoreSeparated = true;
                     }
                 } else if (token.value === 'ts') {
                     locals.timestamp = true;
@@ -728,6 +748,14 @@ function addCommas(x: string, every: number) {
     return parts.join(".");
 }
 
+function addUnderscores(x: string, every: number) {
+    var parts = x.toString().split(".");
+    let regex = `\\B(?=(\\d{${every}})+(?!\\d))`;
+    let re = new RegExp(regex, 'g');
+    parts[0] = parts[0].replace(re, '_');
+    return parts.join(".");
+}
+
 function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: DocumentState): Settings {
     let s = new Settings();
 
@@ -736,12 +764,14 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: D
     docSettings.base = globals.base ? globals.base : docSettings.base;
     docSettings.precision = globals.precision ? globals.precision : docSettings.precision;
     docSettings.commaSeparated = globals.commaSeparated ? globals.commaSeparated : docSettings.commaSeparated;
+    docSettings.underscoreSeparated = globals.underscoreSeparated ? globals.underscoreSeparated : docSettings.underscoreSeparated;
     docSettings.timestamp = globals.timestamp ? globals.timestamp : docSettings.timestamp;
     docSettings.arithmetic = globals.arithmetic ? globals.arithmetic : docSettings.arithmetic;
 
     if (
         globals.base ||
         globals.commaSeparated ||
+        globals.underscoreSeparated ||
         globals.timestamp ||
         globals.precision ||
         globals.arithmetic
@@ -753,6 +783,7 @@ function sortSettings(locals: FuzzySettings, globals: FuzzySettings, docState: D
     s.precision = locals.precision ? locals.precision : docSettings.precision;
     s.timestamp = locals.timestamp ? locals.timestamp : docSettings.timestamp;
     s.commaSeparated = locals.commaSeparated ? locals.commaSeparated : docSettings.commaSeparated;
+    s.underscoreSeparated = locals.underscoreSeparated ? locals.underscoreSeparated : docSettings.underscoreSeparated;
     s.arithmetic = locals.arithmetic ? locals.arithmetic : docSettings.arithmetic;
 
     return s;
@@ -820,6 +851,8 @@ export function evaluateExpression(expr: string, docState: DocumentState): strin
                     }
                 } else if (settings.commaSeparated) {
                     resultString = addCommas(resultString, 3);
+                } else if (settings.underscoreSeparated) {
+                    resultString = addUnderscores(resultString, 3);
                 }
             }
         } else {

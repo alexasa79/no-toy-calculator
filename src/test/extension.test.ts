@@ -107,6 +107,15 @@ suite('Extension Test Suite', () => {
         assert.strictEqual(evaluateExpression('cs 10000*10000 hex', docSettings), '0x5f5e100');
     });
 
+    test('Underscore separated', () => {
+        let docSettings = new DocumentState(defaultSettings);
+
+        assert.strictEqual(evaluateExpression('10_000', docSettings), '10000');
+        assert.strictEqual(evaluateExpression('10*100 us', docSettings), '1_000');
+        assert.strictEqual(evaluateExpression('us 10000*10000', docSettings), '100_000_000');
+        assert.strictEqual(evaluateExpression('us 10000*10000 hex', docSettings), '0x5f5e100');
+    });
+
     test('Global settings', () => {
         let docSettings = new DocumentState(defaultSettings);
 
