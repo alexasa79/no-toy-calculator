@@ -3,10 +3,13 @@
   "displayName": "No-Toy Calculator",
   "description": "",
   "repository": "git@github.com:alexasa79/no-toy-calculator.git",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "engines": {
     "vscode": "^1.85.0"
   },
+  "extensionKind": [
+    "ui"
+  ],
   "categories": [
     "Other"
   ],
@@ -42,6 +45,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "decimal.js": "^10.4.3"
+    "decimal.js": "^10.4.3",
+    "vsce": "^2.15.0"
   }
 }

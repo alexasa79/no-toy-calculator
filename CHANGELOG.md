@@ -1,5 +1,10 @@
 # Change Log
 
+## Version 0.0.15
+- Few minor fixes.
+- Change the extension to be UI extension, meaning it does not require
+  remote installation.
+
 ## Version 0.0.14
 - Support ISO8601 timestamps.
 - Support time units: `d`, `h` and `min`.
